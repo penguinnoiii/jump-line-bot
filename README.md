@@ -59,13 +59,13 @@ Keep the two values handy for Part C.
    - Click **Verify** → should say Success.
    - **Use webhook:** ON.
 2. In the same tab, find the **QR code** / add-friend link for the OA. Scan it in the LINE app on your phone.
-3. Send a message, e.g. *"อยากเข้าสายวิทย์-คณิต ต้องเตรียมตัวยังไงบ้าง"* — the bot replies with guidance.
+3. Send **any message** first — a new student always hits the onboarding gate before guidance: reply **"ยินยอม"**, then a nickname, grade, and interest. After that, ask anything, e.g. *"อยากเข้าสายวิทย์-คณิต ต้องเตรียมตัวยังไงบ้าง"* — the bot replies with **personalized** guidance (no re-asking your nickname/grade).
 
 ---
 
 ## Rich menu (tappable buttons)
 
-The OA has a 3-button rich menu — **ยืนยันตัวตน / ค้นหาโรงเรียน / แนะแนว** — so you can demo by tapping instead of typing. Each button sends a message the bot already handles (identity verify, school comparison, guidance).
+The OA has a 3-button rich menu — **ยืนยันตัวตน / ค้นหาโรงเรียน / แนะแนว** — so you can demo by tapping instead of typing. Each button sends a message the bot already handles (identity verify, school comparison, guidance). Note: the **ค้นหาโรงเรียน**/**แนะแนว** buttons only reach the LLM once onboarding is complete — tapping them beforehand feeds that button's text into whichever onboarding question is current instead (e.g. it becomes your "interest" answer). Finish onboarding first, then use the menu.
 
 - Image generator: `scripts/richmenu-image.js` (renders Thai via `@napi-rs/canvas`).
 - Setup/refresh: `npm run richmenu` (creates the menu, uploads the image, sets it as default; clears old menus first). Re-run after changing labels or button actions.
@@ -139,7 +139,8 @@ git push -u origin main
 
 - `server.js` — verifies the LINE signature, acks fast, routes text messages to the LLM, replies.
 - `src/prompts.js` — the system prompt encoding the **advisor role and ethics guardrails** from the brief: AI can search/summarize/compare, but is a *decision-support tool, not the decider of a child's future*; Human-in-the-loop for "เหมาะ/ไม่เหมาะ" calls; PDPA-aware; honest that this demo has no live central database yet.
-- `src/llm.js` — calls **Typhoon** (Thai LLM) via the OpenAI-compatible API, grounds answers in live web search when needed, and keeps a short in-memory chat history per user.
+- `src/onboarding.js` — **student "log in" gate**: consent → nickname → grade → interest, before a student can chat. Matches the brief's flow (*"นักเรียน + ผู้ปกครองเข้าสู่ระบบ > Consent > กรอกข้อมูล"*). Declining consent still lets a student chat (generic, non-personalized) rather than blocking them outright. Send **"แก้ไขข้อมูล"** anytime to restart it.
+- `src/llm.js` — calls **Typhoon** (Thai LLM) via the OpenAI-compatible API, personalizes using the onboarding profile, grounds answers in live web search when needed, and keeps a short in-memory chat history per user.
 - `src/search.js` — **live web grounding** (the bridge to a real Central Education Database): a keyword heuristic detects questions needing current facts (schools, admissions, tuition, deadlines), searches the web via **Tavily**, and feeds real results into the LLM with citation instructions. Replies get a **📎 แหล่งข้อมูล** (sources) list with real clickable links. No `TAVILY_API_KEY` → search is skipped and the bot falls back to the honest "this is general knowledge, verify at the source" behavior — never fabricated data.
 - `src/ais.js` — **AIS Open API** identity services for the *"ยืนยันตัวตน"* step:
   - **Number Verification** (GSMA/CAMARA) — confirm a phone number silently on the AIS network.

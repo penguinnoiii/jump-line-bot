@@ -1,11 +1,18 @@
 // Jump Thailand — LINE OA education-guidance chatbot.
-// Express webhook that verifies LINE signatures, hands each text message to
-// Claude, and replies over the Messaging API.
+// Express webhook that verifies LINE signatures, gates each student through
+// onboarding, routes AIS identity requests and guidance questions to the
+// right handler, and replies over the Messaging API.
 
 import express from 'express';
 import { middleware, messagingApi } from '@line/bot-sdk';
-import { generateGuidance } from './src/llm.js';
+import { generateGuidance, resetHistory } from './src/llm.js';
 import { handleIdentityMessage } from './src/ais.js';
+import {
+  isOnboarded,
+  isResetCommand,
+  getProfile,
+  handleOnboarding,
+} from './src/onboarding.js';
 
 const { MessagingApiClient } = messagingApi;
 
@@ -58,7 +65,24 @@ async function handleEvent(event) {
       return;
     }
 
-    const { text, sources } = await generateGuidance(userId, userText);
+    // Onboarding gate ("log in"): consent → nickname → grade → interest.
+    // Students can't reach the guidance LLM until this completes. A reset
+    // command works even for an already-onboarded student.
+    if (!isOnboarded(userId) || isResetCommand(userText)) {
+      if (isResetCommand(userText)) resetHistory(userId);
+      const onboardingReply = handleOnboarding(userId, userText);
+      await client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: 'text', text: onboardingReply }],
+      });
+      return;
+    }
+
+    const { text, sources } = await generateGuidance(
+      userId,
+      userText,
+      getProfile(userId),
+    );
     const sourceBlock = sources.length
       ? '\n\n📎 แหล่งข้อมูล:\n' +
         sources.map((s, i) => `${i + 1}. ${s.title}\n${s.url}`).join('\n')

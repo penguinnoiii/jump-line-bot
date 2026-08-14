@@ -20,15 +20,34 @@ const MAX_TURNS = 8; // keep the last 8 exchanges (16 messages)
 
 const FALLBACK_REPLY = 'ขออภัยค่ะ ระบบมีปัญหาชั่วคราว ลองใหม่อีกครั้งนะคะ 🙏';
 
+/** Clear a user's chat history (e.g. when they restart onboarding). */
+export function resetHistory(userId) {
+  histories.delete(userId);
+}
+
 /**
  * Generate a guidance reply for a user's message.
  * @param {string} userId  LINE user id (keys the conversation history)
  * @param {string} userText  the user's message text
+ * @param {object|null} [profile]  onboarding profile (nickname/grade/interest),
+ *   or null/anonymous for a student who declined consent
  * @returns {Promise<{text: string, sources: {title:string,url:string}[]}>}
  */
-export async function generateGuidance(userId, userText) {
+export async function generateGuidance(userId, userText, profile = null) {
   const history = histories.get(userId) || [];
-  const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...history];
+  const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+
+  if (profile && !profile.anonymous) {
+    messages.push({
+      role: 'system',
+      content:
+        `ข้อมูลนักเรียนที่คุยด้วย (จากขั้นตอนกรอกข้อมูล): ชื่อเล่น ${profile.nickname}, ` +
+        `ระดับชั้น ${profile.grade}, สนใจ ${profile.interest}. ` +
+        'ใช้ข้อมูลนี้ปรับคำแนะนำให้ตรงจุด เรียกชื่อเล่นได้ตามความเหมาะสม และไม่ต้องถามข้อมูลนี้ซ้ำ เว้นแต่จำเป็นจริง ๆ',
+    });
+  }
+
+  messages.push(...history);
 
   let sources = [];
   if (needsWebSearch(userText)) {
