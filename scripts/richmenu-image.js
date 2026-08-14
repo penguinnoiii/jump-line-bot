@@ -23,7 +23,7 @@ const H = 843;
 const PANELS = [
   { title: 'เข้าสู่ระบบ', sub: 'เริ่มใช้งาน Jump', icon: 'check', from: '#22e5a0', to: '#0aa66e' },
   { title: 'ค้นหาโรงเรียน', sub: 'เปรียบเทียบสายการเรียน', icon: 'search', from: '#6d8bff', to: '#3d5af1' },
-  { title: 'แนะแนว', sub: 'ด้วย AI (Typhoon)', icon: 'cap', from: '#ffb454', to: '#f2861f' },
+  { title: 'แนะแนว', sub: 'ด้วย AI (Gemini)', icon: 'cap', from: '#ffb454', to: '#f2861f' },
   { title: 'แดชบอร์ด', sub: 'ครู/นักเรียน', icon: 'grid', from: '#c68bff', to: '#9c4dff' },
 ];
 

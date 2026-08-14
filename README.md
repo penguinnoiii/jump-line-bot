@@ -1,11 +1,11 @@
 # Jump Thailand — LINE OA Guidance Chatbot (Demo)
 
-A live LINE Official Account chatbot that gives Thai students personalized education guidance, powered by **Typhoon** (SCB 10X's Thai LLM). This is the working demo behind the Jump Thailand tech pitch.
+A live LINE Official Account chatbot that gives Thai students personalized education guidance, powered by **Gemini** (Google's Gemini API). This is the working demo behind the Jump Thailand tech pitch.
 
-**Stack:** Node.js + Express + `@line/bot-sdk` (Messaging API) + `openai` SDK pointed at Typhoon's OpenAI-compatible API. Deployed on Render.
+**Stack:** Node.js + Express + `@line/bot-sdk` (Messaging API) + `@google/genai` SDK. Deployed on Render.
 
 ```
-Student in LINE app  →  LINE Platform  →  /webhook (this server)  →  Typhoon (Thai LLM)  →  reply
+Student in LINE app  →  LINE Platform  →  /webhook (this server)  →  Gemini  →  reply
 ```
 
 ---
@@ -28,10 +28,10 @@ Keep the two values handy for Part C.
 
 ---
 
-## Part B — Get a Typhoon API key (free)
+## Part B — Get a Gemini API key (free)
 
-1. https://opentyphoon.ai → sign up → **API Keys** / dashboard → generate a key → this is `TYPHOON_API_KEY`.
-2. The free tier is rate-limited but fine for a demo. Chat model used: `typhoon-v2.5-30b-a3b-instruct`.
+1. https://aistudio.google.com/apikey → sign in with a Google account → **Create API key** → this is `GEMINI_API_KEY`.
+2. The free tier is rate-limited but fine for a demo. Chat model used: `gemini-2.5-flash`.
 
 ---
 
@@ -43,8 +43,8 @@ Keep the two values handy for Part C.
 3. In the service's **Environment** settings, set the three secrets:
    - `LINE_CHANNEL_ACCESS_TOKEN`
    - `LINE_CHANNEL_SECRET`
-   - `TYPHOON_API_KEY`
-   - (`TYPHOON_MODEL` defaults to `typhoon-v2.5-30b-a3b-instruct`.)
+   - `GEMINI_API_KEY`
+   - (`GEMINI_MODEL` defaults to `gemini-2.5-flash`.)
 4. Deploy. When it's live, note the URL, e.g. `https://jump-line-bot.onrender.com`.
    Open it in a browser — you should see "Jump Thailand LINE bot is running ✅".
 
@@ -139,8 +139,8 @@ git push -u origin main
 
 - `server.js` — verifies the LINE signature, acks fast, routes text messages to the LLM, replies.
 - `src/prompts.js` — the system prompt encoding the **advisor role and ethics guardrails** from the brief: AI can search/summarize/compare, but is a *decision-support tool, not the decider of a child's future*; Human-in-the-loop for "เหมาะ/ไม่เหมาะ" calls; PDPA-aware; honest that this demo has no live central database yet.
-- `src/onboarding.js` — **student "log in" gate**: consent → **AIS phone verification (OTP, required)** → 5 general-info questions — **ชื่อ-นามสกุล (full name), โรงเรียน, รหัสนักเรียน, ชั้น/ห้อง, ความสนใจ/เป้าหมาย** (skippable with **"ข้าม"**; phone/OTP are not — they're the identity gate). Wrong code → retry; **"ส่งรหัสใหม่"** resends; **"เปลี่ยนเบอร์"** restarts from the phone step. The student is addressed by their **first name**, derived from the full name. Declining consent still lets a student chat (generic, non-personalized) rather than blocking them outright. Send **"เข้าสู่ระบบ"** (or "แก้ไขข้อมูล") anytime to restart it. The profile feeds Typhoon so replies are genuinely tailored. The very first message also gives a short **"what can Jump do"** list before asking to log in.
-- `src/llm.js` — calls **Typhoon** (Thai LLM) via the OpenAI-compatible API, personalizes using the onboarding profile, grounds answers in live web search when needed, and keeps a short in-memory chat history per user. Replies are tuned **short and emoji-forward** (chat-style, ~4-6 lines) rather than long formatted reports — see `src/prompts.js`.
+- `src/onboarding.js` — **student "log in" gate**: consent → **AIS phone verification (OTP, required)** → 5 general-info questions — **ชื่อ-นามสกุล (full name), โรงเรียน, รหัสนักเรียน, ชั้น/ห้อง, ความสนใจ/เป้าหมาย** (skippable with **"ข้าม"**; phone/OTP are not — they're the identity gate). Wrong code → retry; **"ส่งรหัสใหม่"** resends; **"เปลี่ยนเบอร์"** restarts from the phone step. The student is addressed by their **first name**, derived from the full name. Declining consent still lets a student chat (generic, non-personalized) rather than blocking them outright. Send **"เข้าสู่ระบบ"** (or "แก้ไขข้อมูล") anytime to restart it. The profile feeds Gemini so replies are genuinely tailored. The very first message also gives a short **"what can Jump do"** list before asking to log in.
+- `src/llm.js` — calls **Gemini** via `@google/genai`, personalizes using the onboarding profile, grounds answers in live web search when needed, and keeps a short in-memory chat history per user. Replies are tuned **short and emoji-forward** (chat-style, ~4-6 lines) rather than long formatted reports — see `src/prompts.js`.
 - `src/store.js` + `src/teacher-auth.js` + `public/teacher.html` — **cloud storage + Teacher View** (the optional "Teacher View ถ้าทำทัน" from the brief, now built). Every completed profile is persisted to **Upstash Redis** (free, REST-based cloud store), indexed by room (reusing the ชั้น/ห้อง answer, e.g. `ม.6/3`). A guidance teacher opens **`/teacher`**, enters a password, and sees every room's students with their full profile — no `UPSTASH_REDIS_REST_URL`/`TOKEN` → falls back to in-memory (works for a demo, resets on restart). **Auth is demo-grade**: one shared password (`TEACHER_PASSWORD`, defaults to `jump-demo-2026` if unset — change it before sharing the URL) issuing a 1-hour bearer token; real deployment would want per-teacher accounts.
 - `public/dashboard.html` + `src/dashboard-auth.js` — **`/dashboard`**, the rich-menu entry point both roles share. Teacher card links straight to `/teacher` above. Student card logs in with the **same AIS OTP flow used everywhere else** (phone → code → done) — deliberately *not* a name/student-ID lookup, which a classmate could spoof. A verified student can then view and edit their own **fullName / school / studentId / grade / interest** (phone stays tied to the chat's OTP verification, not editable here). Edits write through `onboarding.js`'s `updateProfileFields()`, which updates **both** the cloud record (teacher sees it) **and** the live in-memory chat session — so the very next guidance reply reflects the change, verified end-to-end in testing.
 - `src/search.js` — **live web grounding** (the bridge to a real Central Education Database): a keyword heuristic detects questions needing current facts (schools, admissions, tuition, deadlines), searches the web via **Tavily**, and feeds real results into the LLM with citation instructions. Replies get a **📎 แหล่งข้อมูล** (sources) list with real clickable links. No `TAVILY_API_KEY` → search is skipped and the bot falls back to the honest "this is general knowledge, verify at the source" behavior — never fabricated data.
@@ -156,8 +156,8 @@ git push -u origin main
 
 To go live, set the `AIS_*` vars from `.env.example`.
 
-**Swapping the model:** Typhoon uses an OpenAI-compatible API, so any other OpenAI-compatible provider (Gemini via its compat endpoint, Groq, OpenRouter, or self-hosted OpenThaiGPT) works by changing `TYPHOON_BASE_URL`, `TYPHOON_API_KEY`, and `TYPHOON_MODEL` — no code change.
+**Swapping the model:** set `GEMINI_MODEL` to any other Gemini model id (e.g. `gemini-2.5-pro` for higher quality, at higher cost/latency) — no code change.
 
-**Honest scope for judges:** this proves the LINE OA → AI → student loop end to end, running on a **Thai LLM** (nice "sovereign AI" story). Factual questions are now **grounded in live web search** with real citations instead of pure model memory — a working bridge to the planned **Central Education Database**, which will replace open web search with a curated, verified feed once the ministry/school data pipeline exists.
+**Honest scope for judges:** this proves the LINE OA → AI → student loop end to end, running on **Gemini**. Factual questions are now **grounded in live web search** with real citations instead of pure model memory — a working bridge to the planned **Central Education Database**, which will replace open web search with a curated, verified feed once the ministry/school data pipeline exists.
 
 **Try it:** ask something specific — *"ทุนการศึกษาโรงเรียนมหิดลวิทยานุสรณ์มีอะไรบ้าง"* or *"TCAS68 รอบไหนเปิดรับตอนไหน"* — with `TAVILY_API_KEY` set, the reply cites real sources and ends with a **📎 แหล่งข้อมูล** link list.

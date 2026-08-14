@@ -1,22 +1,22 @@
-// Typhoon-powered guidance generation (SCB 10X Thai LLM, OpenAI-compatible API).
+// Gemini-powered guidance generation (Google Gemini API via @google/genai).
 // Grounds answers in live web search results when the question needs current
 // facts (see src/search.js), and keeps a small in-memory conversation history
 // per LINE user. History resets on restart — fine for a demo; swap for a
 // store (Redis/DB) for production.
 
-import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai';
 import { SYSTEM_PROMPT } from './prompts.js';
 import { needsWebSearch, webSearch } from './search.js';
 import { profileSummaryForLLM } from './onboarding.js';
 
-const client = new OpenAI({
-  apiKey: process.env.TYPHOON_API_KEY,
-  baseURL: process.env.TYPHOON_BASE_URL || 'https://api.opentyphoon.ai/v1',
-});
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const MODEL = process.env.TYPHOON_MODEL || 'typhoon-v2.5-30b-a3b-instruct';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
-const histories = new Map(); // userId -> [{ role, content }, ...] (no system msg)
+// Gemini's Content role must be exactly 'user' or 'model' (no 'system' or
+// 'assistant') — history is stored in that shape directly so no per-call
+// conversion is needed.
+const histories = new Map(); // userId -> [{ role: 'user'|'model', parts: [{text}] }, ...]
 const MAX_TURNS = 8; // keep the last 8 exchanges (16 messages)
 
 const FALLBACK_REPLY = 'ขออภัยค่ะ ระบบมีปัญหาชั่วคราว ลองใหม่อีกครั้งนะคะ 🙏';
@@ -37,10 +37,10 @@ export function resetHistory(userId) {
 export async function generateGuidance(userId, userText, profile = null) {
   const history = histories.get(userId) || [];
 
-  // Typhoon's chat template only fully attends to a SINGLE system message —
-  // testing showed a second system-role turn (profile context) got largely
-  // ignored even though it was clearly instructed. Build one combined system
-  // string instead of stacking multiple system messages.
+  // Gemini takes exactly one systemInstruction (config-level, not a message
+  // in `contents`) — profile context and search context are folded into it
+  // the same way the old Typhoon single-system-message workaround did, since
+  // that shape (one combined instruction block) is the reliable one anyway.
   let systemContent = SYSTEM_PROMPT;
 
   const profileSummary = profileSummaryForLLM(profile);
@@ -69,20 +69,28 @@ export async function generateGuidance(userId, userText, profile = null) {
     }
   }
 
-  const messages = [
-    { role: 'system', content: systemContent },
+  const contents = [
     ...history,
-    { role: 'user', content: userText },
+    { role: 'user', parts: [{ text: userText }] },
   ];
 
-  const completion = await client.chat.completions.create({
+  const response = await ai.models.generateContent({
     model: MODEL,
-    max_tokens: 700, // shorter, chat-style replies (see prompts.js)
-    temperature: 0.4,
-    messages,
+    contents,
+    config: {
+      systemInstruction: systemContent,
+      temperature: 0.4,
+      maxOutputTokens: 700, // shorter, chat-style replies (see prompts.js)
+      // Gemini 2.5's "thinking" is on by default and spends maxOutputTokens
+      // on invisible reasoning tokens before the visible reply — testing
+      // showed this can silently eat the whole budget and return an EMPTY
+      // reply for short, non-technical chat questions that don't need deep
+      // reasoning. Disabled for fast, reliable, short chat-style replies.
+      thinkingConfig: { thinkingBudget: 0 },
+    },
   });
 
-  let text = completion.choices?.[0]?.message?.content?.trim() || FALLBACK_REPLY;
+  let text = response.text?.trim() || FALLBACK_REPLY;
 
   // Safety net: the model occasionally emits a bare [1]-style citation marker
   // even when told not to. If no real search happened, there is nothing for
@@ -93,13 +101,13 @@ export async function generateGuidance(userId, userText, profile = null) {
     text = text.replace(/\s*\[\d+\]/g, '').trim();
   }
 
-  // Persist trimmed history — user/assistant turns only. The search-context
+  // Persist trimmed history — user/model turns only. The search-context
   // block is NOT stored, so every turn searches fresh instead of relying on
   // results that may already be stale by the next question.
   const updated = [
     ...history,
-    { role: 'user', content: userText },
-    { role: 'assistant', content: text },
+    { role: 'user', parts: [{ text: userText }] },
+    { role: 'model', parts: [{ text }] },
   ].slice(-MAX_TURNS * 2);
   histories.set(userId, updated);
 

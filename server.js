@@ -45,8 +45,8 @@ if (!channelAccessToken || !channelSecret) {
   );
   process.exit(1);
 }
-if (!process.env.TYPHOON_API_KEY) {
-  console.error('Missing TYPHOON_API_KEY.');
+if (!process.env.GEMINI_API_KEY) {
+  console.error('Missing GEMINI_API_KEY.');
   process.exit(1);
 }
 
