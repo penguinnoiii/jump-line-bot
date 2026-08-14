@@ -54,8 +54,11 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
     padding: 16px 18px; box-shadow: var(--shadow);
   }
-  .student-card h3 { margin: 0 0 8px; font-size: 16px; }
+  .student-card h3 { margin: 0 0 8px; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .student-card h3 .room { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .badge { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; letter-spacing: .02em; }
+  .badge.verified { background: #e3f6ea; color: #06a94b; }
+  .badge.unverified { background: var(--surface-2); color: var(--faint); }
   .fields { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; font-size: 13.5px; }
   .fields dt { color: var(--muted); }
   .fields dd { margin: 0; }
@@ -90,7 +93,7 @@
   let token = null;
   const FIELD_LABELS = [
     ['fullName', 'ชื่อ-นามสกุล'], ['school', 'โรงเรียน'], ['studentId', 'รหัสนักเรียน'],
-    ['grade', 'ชั้น/ห้อง'], ['interest', 'ความสนใจ/เป้าหมาย'],
+    ['grade', 'ชั้น/ห้อง'], ['interest', 'ความสนใจ/เป้าหมาย'], ['phone', 'เบอร์ที่ยืนยัน (AIS)'],
   ];
 
   async function login() {
@@ -158,10 +161,13 @@
     students.forEach((s) => {
       const card = document.createElement('div');
       card.className = 'student-card';
-      const fields = FIELD_LABELS.filter(([k]) => k !== 'grade' && s[k])
+      const fields = FIELD_LABELS.filter(([k]) => k !== 'grade' && k !== 'phone' && s[k])
         .map(([k, label]) => `<dt>${label}</dt><dd>${escapeHtml(s[k])}</dd>`).join('');
+      const badge = s.phoneVerified
+        ? `<span class="badge verified">✅ ยืนยันแล้ว · ${escapeHtml(s.phone || '')}</span>`
+        : '<span class="badge unverified">ยังไม่ยืนยันเบอร์</span>';
       card.innerHTML =
-        `<h3>👤 ${escapeHtml(s.nickname || 'ไม่ระบุชื่อ')} <span class="room">· ${escapeHtml(s.room || '')}</span></h3>` +
+        `<h3>👤 ${escapeHtml(s.nickname || 'ไม่ระบุชื่อ')} <span class="room">· ${escapeHtml(s.room || '')}</span> ${badge}</h3>` +
         `<dl class="fields">${fields}</dl>`;
       el.appendChild(card);
     });

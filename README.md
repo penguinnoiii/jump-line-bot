@@ -147,6 +147,7 @@ git push -u origin main
   - **Number Verification** (GSMA/CAMARA) — confirm a phone number silently on the AIS network.
   - **OTP API** — send a one-time password by SMS and verify it (2-step).
   Both are fully env-var configurable and run in **mock mode** until AIS credentials are set (get them from `jumpthailand@ais.co.th`), so the demo works today and goes live the moment keys are added.
+  **Linked to the student record:** a verified phone is attached onto that student's login profile automatically, whichever happens first — verify before logging in, or log in then verify later. The link is re-synced live, so the Teacher View always reflects current status: a ✅ **ยืนยันแล้ว** badge + the real number for a verified student, or **ยังไม่ยืนยันเบอร์** otherwise. No extra login question — verification stays a standalone action (type a phone number, or *"ขอ OTP ..."*) that just gets tied to whichever record it belongs to.
 
 **Try the AIS step in LINE:**
 - Number Verification: send a Thai mobile number (`0812345678`) or *"ยืนยันเบอร์ 0812345678"*.

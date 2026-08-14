@@ -7,8 +7,15 @@
 // The live state machine below stays in-memory (fast, synchronous, per-turn).
 // A completed (non-anonymous) profile is also persisted to the cloud store
 // (src/store.js) so a guidance teacher can look it up later, grouped by room.
+//
+// AIS phone verification (src/ais.js) is a separate, standalone flow — a
+// student can verify before, during, or after logging in. Whenever either
+// side changes, syncVerifiedPhone() links the two: the verified number gets
+// attached to the student's profile and re-persisted, so the teacher
+// dashboard shows verification status without a dedicated login question.
 
 import { persistProfile } from './store.js';
+import { getVerifiedPhone, maskPhone } from './ais.js';
 
 const profiles = new Map(); // userId -> { stage, ...fields, nickname, anonymous, consentAt, completedAt }
 
@@ -94,11 +101,39 @@ function doneSummary(p) {
   const lines = FIELDS.map(
     (f) => `• ${f.label}: ${p[f.key] || 'ไม่ระบุ'}`,
   ).join('\n');
+  const verifyLine = p.phoneVerified
+    ? `• เบอร์ที่ยืนยันแล้ว: ${maskPhone(p.phone)} ✅ (ผ่าน AIS)`
+    : '• ยืนยันตัวตน: ยังไม่ได้ยืนยันเบอร์ (พิมพ์เบอร์โทร หรือ "ขอ OTP <เบอร์>" ได้ทุกเมื่อ)';
   return (
-    `เรียบร้อยค่ะ ✅\n\n📋 ข้อมูลของ${p.nickname}\n${lines}\n\n` +
+    `เรียบร้อยค่ะ ✅\n\n📋 ข้อมูลของ${p.nickname}\n${lines}\n${verifyLine}\n\n` +
     'ตอนนี้คุยกับ Jump ได้เลยค่ะ ลองถามอะไรก็ได้เกี่ยวกับการเรียนต่อ ✨\n' +
     '(พิมพ์ "เข้าสู่ระบบ" ได้ทุกเมื่อถ้าต้องการเริ่มกรอกใหม่)'
   );
+}
+
+/**
+ * Attach a verified phone (from src/ais.js) onto a completed profile, and
+ * re-persist to the cloud store if it changed anything. Works regardless of
+ * whether verification happened before or after login. No-op for a profile
+ * that opted out of data collection (anonymous).
+ */
+function syncVerifiedPhone(userId, p) {
+  if (!p || p.stage !== 'done' || p.anonymous) return;
+  const v = getVerifiedPhone(userId);
+  if (!v || p.phone === v.phone) return;
+  p.phone = v.phone;
+  p.phoneVerified = true;
+  p.phoneVerifiedAt = v.verifiedAt;
+  persistProfile(userId, p).catch((err) =>
+    console.error('[onboarding] re-persist after phone link failed:', err),
+  );
+}
+
+/** Call right after a successful AIS verification, so an already-logged-in
+ * student's record (and the teacher dashboard) updates immediately instead
+ * of waiting for their next message. */
+export function syncPhoneIfOnboarded(userId) {
+  syncVerifiedPhone(userId, profiles.get(userId));
 }
 
 export function isResetCommand(text) {
@@ -114,7 +149,9 @@ export function isOnboarded(userId) {
 /** @returns {object|null} the student's profile, or null if not onboarded. */
 export function getProfile(userId) {
   const p = profiles.get(userId);
-  return p && p.stage === 'done' ? p : null;
+  if (!p || p.stage !== 'done') return null;
+  syncVerifiedPhone(userId, p);
+  return p;
 }
 
 /** Thai-language summary of a profile's fields, for feeding to the LLM. */
@@ -124,6 +161,9 @@ export function profileSummaryForLLM(profile) {
   FIELDS.forEach((f) => {
     if (profile[f.key]) parts.push(`${f.label}: ${profile[f.key]}`);
   });
+  parts.push(
+    `สถานะยืนยันตัวตน: ${profile.phoneVerified ? 'ยืนยันเบอร์แล้วผ่าน AIS' : 'ยังไม่ได้ยืนยันเบอร์'}`,
+  );
   return parts.join(' | ');
 }
 
@@ -181,6 +221,14 @@ export function handleOnboarding(userId, text) {
   if (!next) {
     p.stage = 'done';
     p.completedAt = Date.now();
+    // Link an AIS-verified phone if the student already verified before
+    // finishing login (see syncVerifiedPhone for the reverse order).
+    const verifiedPhone = getVerifiedPhone(userId);
+    if (verifiedPhone) {
+      p.phone = verifiedPhone.phone;
+      p.phoneVerified = true;
+      p.phoneVerifiedAt = verifiedPhone.verifiedAt;
+    }
     // Persist to the cloud store for teacher lookup. Fire-and-forget: don't
     // make the student wait on a network call to get their "done" reply.
     persistProfile(userId, p).catch((err) =>

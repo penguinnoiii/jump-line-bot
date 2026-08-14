@@ -44,6 +44,14 @@ export const otpConfigured = () =>
 const pendingOtp = new Map();
 export const hasPendingOtp = (userId) => pendingOtp.has(userId);
 
+// In-memory record of the last successfully verified phone per user, so it
+// can be linked onto that student's login profile (src/onboarding.js) —
+// whichever order verification and login happen in.
+const verifiedPhones = new Map(); // userId -> { phone, verifiedAt, mock }
+export function getVerifiedPhone(userId) {
+  return verifiedPhones.get(userId) || null;
+}
+
 /** Normalise a Thai mobile number in free text to E.164 (+66…), or null. */
 export function extractThaiMobile(text) {
   const digits = String(text).replace(/[^\d+]/g, '');
@@ -53,7 +61,7 @@ export function extractThaiMobile(text) {
   return null;
 }
 
-const maskPhone = (p) => p.replace(/(\+66\d{2})\d{5}(\d{2})/, '$1xxxxx$2');
+export const maskPhone = (p) => p.replace(/(\+66\d{2})\d{5}(\d{2})/, '$1xxxxx$2');
 
 async function getAccessToken(directToken) {
   if (directToken) return directToken;
@@ -200,6 +208,7 @@ export async function handleIdentityMessage(userId, text) {
   if (hasPendingOtp(userId) && codeMatch) {
     const r = await verifyOtp(userId, codeMatch[1]);
     if (r.verified) {
+      verifiedPhones.set(userId, { phone: r.phone, verifiedAt: Date.now(), mock: r.mock });
       return (
         `✅ ยืนยัน OTP สำเร็จ เบอร์ ${maskPhone(r.phone)} ได้รับการยืนยันแล้วค่ะ\n` +
         CONTINUE +
@@ -232,6 +241,7 @@ export async function handleIdentityMessage(userId, text) {
   if (isExactPhone || VERIFY_KEYWORD.test(t)) {
     const r = await verifyPhoneNumber(phone);
     if (r.verified) {
+      verifiedPhones.set(userId, { phone, verifiedAt: Date.now(), mock: r.mock });
       return (
         `✅ ยืนยันเบอร์ ${maskPhone(phone)} เรียบร้อยผ่านเครือข่าย AIS แล้วค่ะ\n` +
         CONTINUE +

@@ -12,6 +12,7 @@ import {
   isResetCommand,
   getProfile,
   handleOnboarding,
+  syncPhoneIfOnboarded,
 } from './src/onboarding.js';
 import { login as teacherLogin, verifyToken } from './src/teacher-auth.js';
 import { listRooms, listStudentsInRoom } from './src/store.js';
@@ -100,6 +101,9 @@ async function handleEvent(event) {
     // messages.
     const identityReply = await handleIdentityMessage(userId, userText);
     if (identityReply) {
+      // Link a newly-verified phone onto an already-logged-in student's
+      // record immediately, rather than waiting for their next message.
+      syncPhoneIfOnboarded(userId);
       await client.replyMessage({
         replyToken: event.replyToken,
         messages: [{ type: 'text', text: identityReply }],
