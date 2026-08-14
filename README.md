@@ -63,6 +63,38 @@ Keep the two values handy for Part C.
 
 ---
 
+## Alternative hosting — AIS Enterprise Cloud
+
+Render is used above for speed, but the app is a plain containerised Node service, so it runs on **AIS Enterprise Cloud** (VMware-based VMs / container hosts) — making the "AIS Cloud" compute layer of the architecture real. A `Dockerfile` is included.
+
+**Option 1 — Docker (any AIS container host / VM with Docker):**
+```bash
+docker build -t jump-line-bot .
+docker run -d -p 3000:3000 --env-file .env --name jump-bot jump-line-bot
+```
+
+**Option 2 — plain AIS Cloud VM (Ubuntu):**
+```bash
+# on the VM
+sudo apt-get update && sudo apt-get install -y nodejs npm git
+git clone https://github.com/penguinnoiii/jump-line-bot.git && cd jump-line-bot
+npm ci --omit=dev
+cp .env.example .env && nano .env      # fill in the secrets
+npm install -g pm2
+pm2 start server.js --name jump-bot && pm2 save
+```
+
+**Make it HTTPS (LINE requires it):** LINE's webhook must be `https://`. On the AIS VM, put the app behind TLS with a domain — e.g. Caddy (auto-HTTPS):
+```
+# /etc/caddy/Caddyfile
+your-domain.example.com {
+    reverse_proxy localhost:3000
+}
+```
+Then set the LINE Webhook URL to `https://your-domain.example.com/webhook`. (Or use an AIS Cloud load balancer / managed TLS if available.)
+
+---
+
 ## Local development (optional, with ngrok)
 
 You chose Render for the live demo, but to iterate locally:
@@ -97,9 +129,16 @@ git push -u origin main
 - `server.js` — verifies the LINE signature, acks fast, routes text messages to the LLM, replies.
 - `src/prompts.js` — the system prompt encoding the **advisor role and ethics guardrails** from the brief: AI can search/summarize/compare, but is a *decision-support tool, not the decider of a child's future*; Human-in-the-loop for "เหมาะ/ไม่เหมาะ" calls; PDPA-aware; honest that this demo has no live central database yet.
 - `src/llm.js` — calls **Typhoon** (Thai LLM) via the OpenAI-compatible API and keeps a short in-memory chat history per user.
-- `src/ais.js` — **AIS Open API: Number Verification**. Confirms a phone number on the AIS network for the *"ยืนยันตัวตน / ยืนยันเบอร์"* step of the user flow. Built to the GSMA/CAMARA Number Verification standard that AIS follows, fully env-var configurable. Runs in **mock mode** until AIS credentials are set (get them from `jumpthailand@ais.co.th`), so the demo works today and goes live the moment keys are added.
+- `src/ais.js` — **AIS Open API** identity services for the *"ยืนยันตัวตน"* step:
+  - **Number Verification** (GSMA/CAMARA) — confirm a phone number silently on the AIS network.
+  - **OTP API** — send a one-time password by SMS and verify it (2-step).
+  Both are fully env-var configurable and run in **mock mode** until AIS credentials are set (get them from `jumpthailand@ais.co.th`), so the demo works today and goes live the moment keys are added.
 
-**Try the AIS step in LINE:** send a Thai mobile number (e.g. `0812345678`) or *"ยืนยันเบอร์ 0812345678"* — the bot runs it through AIS Number Verification before continuing to guidance. To go live, set the `AIS_*` vars from `.env.example`.
+**Try the AIS step in LINE:**
+- Number Verification: send a Thai mobile number (`0812345678`) or *"ยืนยันเบอร์ 0812345678"*.
+- OTP: send *"ขอ OTP 0812345678"* → the bot "sends" a code (shown in demo mode) → reply with the 6-digit code to verify.
+
+To go live, set the `AIS_*` vars from `.env.example`.
 
 **Swapping the model:** Typhoon uses an OpenAI-compatible API, so any other OpenAI-compatible provider (Gemini via its compat endpoint, Groq, OpenRouter, or self-hosted OpenThaiGPT) works by changing `TYPHOON_BASE_URL`, `TYPHOON_API_KEY`, and `TYPHOON_MODEL` — no code change.
 
