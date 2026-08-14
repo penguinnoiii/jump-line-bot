@@ -1,7 +1,8 @@
-// Student "log in" gate: consent, then the full student profile from the
-// brief's data spec, before the student can chat with the guidance LLM.
-//   ข้อมูลพื้นฐาน (nickname, grade) · ความสนใจ · ความถนัด · ผลการเรียน · Skill ·
-//   กิจกรรม · เป้าหมาย · โรงเรียน/สายที่สนใจ · ข้อจำกัดต่าง ๆ
+// Student "log in" gate: consent, then 5 general-info questions, before the
+// student can chat with the guidance LLM.
+//   ชื่อ-นามสกุล (full name → addressed by first name) · โรงเรียน · รหัสนักเรียน ·
+//   ชั้น/ห้อง (also used to group students by room for the teacher dashboard) ·
+//   ความสนใจ/เป้าหมาย
 //
 // The live state machine below stays in-memory (fast, synchronous, per-turn).
 // A completed (non-anonymous) profile is also persisted to the cloud store
@@ -9,96 +10,75 @@
 
 import { persistProfile } from './store.js';
 
-const profiles = new Map(); // userId -> { stage, ...fields, anonymous, consentAt, completedAt }
+const profiles = new Map(); // userId -> { stage, ...fields, nickname, anonymous, consentAt, completedAt }
 
-const RESET_KEYWORD = /แก้ไขข้อมูล|เริ่มใหม่|เริ่มต้นใหม่|^reset$|ล้างข้อมูล/i;
+const RESET_KEYWORD =
+  /แก้ไขข้อมูล|เริ่มใหม่|เริ่มต้นใหม่|^reset$|ล้างข้อมูล|เข้าสู่ระบบ|log ?in|sign ?in/i;
 const SKIP_KEYWORD = /^ข้าม$|^skip$|ไม่มี|ไม่ระบุ|ยังไม่แน่ใจ/i;
 // Check "no" before "yes" — "ไม่ยินยอม" contains the substring "ยินยอม".
 const CONSENT_NO = /ไม่ยินยอม|ไม่ตกลง|ไม่ยอมรับ|ไม่ok|ไม่โอเค|\bno\b/i;
 const CONSENT_YES = /ยินยอม|ตกลง|ยอมรับ|โอเค|\bok\b|\byes\b|ได้เลย|ได้ค่ะ|ได้ครับ/i;
 
-// The full student profile, in collection order. `question` may be a string
-// or a function of the profile-so-far (for fields that reference earlier
-// answers, e.g. the nickname).
+/** First token of a full name — used to address the student, Thai given-name convention. */
+function extractFirstName(fullName) {
+  const first = String(fullName).trim().split(/\s+/)[0];
+  return first || 'นักเรียน';
+}
+
+// The 5-question login profile, in collection order. `question` may be a
+// string or a function of the profile-so-far (for fields that reference
+// earlier answers, e.g. the student's first name).
 const FIELDS = [
   {
-    key: 'nickname',
-    label: 'ชื่อเล่น',
+    key: 'fullName',
+    label: 'ชื่อ-นามสกุล',
+    max: 80,
+    question: 'เริ่มจากชื่อ-นามสกุลเต็มของน้องก่อนนะคะ (เช่น สมชาย ใจดี)',
+  },
+  {
+    key: 'school',
+    label: 'โรงเรียน',
+    max: 100,
+    question: (p) => `ยินดีที่ได้รู้จัก${p.nickname}ค่ะ 😊 ตอนนี้เรียนอยู่โรงเรียนอะไรคะ?`,
+  },
+  {
+    key: 'studentId',
+    label: 'รหัสนักเรียน',
     max: 40,
-    question: 'เริ่มจากชื่อเล่นของน้องก่อนนะคะ (พิมพ์ชื่อเล่นได้เลย)',
+    question: 'รหัสนักเรียนของน้องคืออะไรคะ?',
   },
   {
     key: 'grade',
-    label: 'ชั้น/ห้อง (ข้อมูลพื้นฐาน)',
+    label: 'ชั้น/ห้อง',
     max: 40,
-    question: (p) =>
-      `ยินดีที่ได้รู้จักน้อง${p.nickname}ค่ะ 🎓 ตอนนี้เรียนอยู่ชั้น/ห้องอะไรคะ? (เช่น ม.6/3, ม.3/1, ปวช.ปี 2/2)`,
+    question: 'เรียนอยู่ชั้น/ห้องอะไรคะ? (เช่น ม.6/3, ม.3/1, ปวช.ปี 2/2)',
   },
   {
     key: 'interest',
-    label: 'ความสนใจ',
-    max: 200,
-    question: 'น้องสนใจเรื่องหรือด้านไหนเป็นพิเศษคะ? (เช่น วิทยาศาสตร์, ศิลปะ, เทคโนโลยี, ธุรกิจ)',
-  },
-  {
-    key: 'aptitude',
-    label: 'ความถนัด',
-    max: 200,
-    question: 'แล้วคิดว่าตัวเองถนัดหรือทำได้ดีเรื่องอะไรบ้างคะ? (เช่น คำนวณเลข, เขียน, พูด, ลงมือทำ)',
-  },
-  {
-    key: 'academicResults',
-    label: 'ผลการเรียน',
-    max: 200,
-    question: 'ผลการเรียนตอนนี้เป็นยังไงบ้างคะ? (เช่น เกรดเฉลี่ยประมาณเท่าไหร่ หรือวิชาที่ทำได้ดี/ไม่ดี)',
-  },
-  {
-    key: 'skills',
-    label: 'Skill',
-    max: 200,
-    question: 'มีทักษะพิเศษอะไรที่ทำได้ไหมคะ? (เช่น ภาษาอังกฤษ, เขียนโปรแกรม, วาดรูป, เล่นดนตรี)',
-  },
-  {
-    key: 'activities',
-    label: 'กิจกรรม',
-    max: 200,
-    question: 'นอกเวลาเรียน ทำกิจกรรมอะไรบ้างคะ? (เช่น ชมรม, กีฬา, จิตอาสา, งานพาร์ทไทม์)',
-  },
-  {
-    key: 'goals',
-    label: 'เป้าหมาย',
-    max: 200,
-    question: 'เป้าหมายในอนาคตของน้องคืออะไรคะ? (เช่น อาชีพที่อยากทำ, มหาวิทยาลัยที่อยากเข้า)',
-  },
-  {
-    key: 'schoolTrack',
-    label: 'โรงเรียน/สายที่สนใจ',
+    label: 'ความสนใจ/เป้าหมาย',
     max: 200,
     question:
-      'มีโรงเรียนหรือสายการเรียนที่สนใจเป็นพิเศษไหมคะ? (เช่น ชื่อโรงเรียน, สายวิทย์-คณิต, สายอาชีพ)',
-  },
-  {
-    key: 'constraints',
-    label: 'ข้อจำกัด',
-    max: 200,
-    question:
-      'สุดท้าย มีข้อจำกัดอะไรที่อยากให้ Jump รู้ไว้ไหมคะ? (เช่น ค่าใช้จ่าย, ระยะทาง, สุขภาพ)',
+      'สุดท้าย สนใจเรียนต่อสายไหน หรือมีเป้าหมายอะไรเป็นพิเศษไหมคะ? (พิมพ์ "ข้าม" ได้ถ้ายังไม่แน่ใจ)',
   },
 ];
 
 const WELCOME_MSG =
-  'สวัสดีค่ะ 👋 ยินดีต้อนรับสู่ "Jump" ผู้ช่วยแนะแนวการศึกษา\n\n' +
-  'ก่อนเริ่มใช้งาน ขอความยินยอมเก็บข้อมูลของน้อง (ข้อมูลพื้นฐาน ความสนใจ ความถนัด ผลการเรียน ' +
-  'Skill กิจกรรม เป้าหมาย โรงเรียน/สายที่สนใจ และข้อจำกัดต่าง ๆ) ผ่านคำถามสั้น ๆ ประมาณ 10 ข้อ ' +
-  'เพื่อให้คำแนะนำตรงกับตัวน้องมากที่สุด ใช้เฉพาะในการสนทนานี้เท่านั้น ข้อไหนไม่สะดวกตอบพิมพ์ "ข้าม" ได้ค่ะ\n' +
+  'สวัสดีค่ะ 👋 นี่คือ "Jump" ผู้ช่วยแนะแนวการศึกษา ทำอะไรได้บ้าง:\n' +
+  '🔎 ค้นหา/เปรียบเทียบโรงเรียน สายการเรียน ทุนการศึกษา\n' +
+  '🎯 แนะแนวเฉพาะบุคคล ตามข้อมูลของน้อง\n' +
+  '🔐 ยืนยันตัวตนผ่านเครือข่าย AIS (เบอร์โทร/OTP)\n' +
+  '💬 ถามได้ทุกเรื่องเกี่ยวกับการเรียนต่อ ตลอด 24 ชม.\n\n' +
+  'ก่อนเริ่ม ขอเข้าสู่ระบบด้วยคำถามทั่วไปสั้น ๆ 5 ข้อ (ชื่อ-นามสกุล, โรงเรียน, รหัสนักเรียน, ' +
+  'ชั้น/ห้อง, ความสนใจ) เพื่อให้คำแนะนำตรงจุดขึ้นค่ะ ใช้เฉพาะในการสนทนานี้เท่านั้น ' +
+  'ข้อไหนไม่สะดวกตอบพิมพ์ "ข้าม" ได้\n' +
   '(ถ้าอายุต่ำกว่า 18 ปี แนะนำให้แจ้งผู้ปกครองให้ทราบด้วยนะคะ)\n\n' +
-  'พิมพ์ "ยินยอม" เพื่อเริ่ม หรือ "ไม่ยินยอม" ถ้าไม่สะดวกให้ข้อมูล (ยังคุยกับบอทได้ แต่คำแนะนำจะเป็นแบบทั่วไป)';
+  'พิมพ์ "ยินยอม" เพื่อเข้าสู่ระบบ หรือ "ไม่ยินยอม" ถ้าไม่สะดวกให้ข้อมูล (ยังคุยกับบอทได้ แต่คำแนะนำจะเป็นแบบทั่วไป)';
 
 const CONSENT_RETRY_MSG = 'รบกวนพิมพ์ "ยินยอม" หรือ "ไม่ยินยอม" ค่ะ 🙏';
 
 const ANON_MODE_MSG =
   'รับทราบค่ะ 🙏 จะไม่เก็บข้อมูลส่วนตัวไว้นะคะ คุยกับ Jump ได้เลย แต่คำแนะนำอาจเป็นแบบทั่วไป ' +
-  'เพราะยังไม่รู้ข้อมูลของน้อง ✨\n(พิมพ์ "แก้ไขข้อมูล" ได้ทุกเมื่อถ้าอยากกรอกข้อมูลภายหลัง)';
+  'เพราะยังไม่รู้ข้อมูลของน้อง ✨\n(พิมพ์ "เข้าสู่ระบบ" ได้ทุกเมื่อถ้าอยากกรอกข้อมูลภายหลัง)';
 
 function fieldIndex(key) {
   return FIELDS.findIndex((f) => f.key === key);
@@ -115,9 +95,9 @@ function doneSummary(p) {
     (f) => `• ${f.label}: ${p[f.key] || 'ไม่ระบุ'}`,
   ).join('\n');
   return (
-    `เรียบร้อยค่ะ ✅\n\n📋 ข้อมูลของน้อง${p.nickname}\n${lines}\n\n` +
+    `เรียบร้อยค่ะ ✅\n\n📋 ข้อมูลของ${p.nickname}\n${lines}\n\n` +
     'ตอนนี้คุยกับ Jump ได้เลยค่ะ ลองถามอะไรก็ได้เกี่ยวกับการเรียนต่อ ✨\n' +
-    '(พิมพ์ "แก้ไขข้อมูล" ได้ทุกเมื่อถ้าต้องการเริ่มกรอกใหม่)'
+    '(พิมพ์ "เข้าสู่ระบบ" ได้ทุกเมื่อถ้าต้องการเริ่มกรอกใหม่)'
   );
 }
 
@@ -140,9 +120,11 @@ export function getProfile(userId) {
 /** Thai-language summary of a profile's fields, for feeding to the LLM. */
 export function profileSummaryForLLM(profile) {
   if (!profile || profile.anonymous) return null;
-  return FIELDS.filter((f) => profile[f.key])
-    .map((f) => `${f.label}: ${profile[f.key]}`)
-    .join(' | ');
+  const parts = [`ชื่อที่ควรเรียก (ชื่อจริง): ${profile.nickname}`];
+  FIELDS.forEach((f) => {
+    if (profile[f.key]) parts.push(`${f.label}: ${profile[f.key]}`);
+  });
+  return parts.join(' | ');
 }
 
 /**
@@ -187,7 +169,13 @@ export function handleOnboarding(userId, text) {
   // p.stage is a field key — record the answer (or skip) and move to the next one.
   const idx = fieldIndex(p.stage);
   const field = FIELDS[idx];
-  p[field.key] = SKIP_KEYWORD.test(t) ? 'ไม่ระบุ' : t.slice(0, field.max);
+  const value = SKIP_KEYWORD.test(t) ? 'ไม่ระบุ' : t.slice(0, field.max);
+  p[field.key] = value;
+  if (field.key === 'fullName') {
+    // Derive the name we address them by — their actual first name, not a
+    // separately-asked nickname.
+    p.nickname = value === 'ไม่ระบุ' ? 'นักเรียน' : extractFirstName(value);
+  }
 
   const next = FIELDS[idx + 1];
   if (!next) {

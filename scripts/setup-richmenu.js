@@ -16,8 +16,11 @@ const client = new messagingApi.MessagingApiClient({ channelAccessToken });
 const blobClient = new messagingApi.MessagingApiBlobClient({ channelAccessToken });
 
 // Each panel taps to send a message the bot already understands.
+// Panel 1 always (re)starts the login/onboarding flow — "เข้าสู่ระบบ" is a
+// reset-command alias (see src/onboarding.js), so it shows the welcome +
+// consent screen whether or not the tapper is already logged in.
 const ACTIONS = [
-  { type: 'message', text: 'ยืนยันเบอร์ 0812345678' },
+  { type: 'message', text: 'เข้าสู่ระบบ' },
   { type: 'message', text: 'ช่วยเปรียบเทียบโรงเรียนสายวิทย์-คณิตในกรุงเทพให้หน่อย' },
   { type: 'message', text: 'ผมอยู่ ม.3 สนใจสายวิทย์-คณิต ควรเตรียมตัวยังไง' },
 ];

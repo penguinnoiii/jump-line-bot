@@ -10,7 +10,7 @@ GlobalFonts.registerFromPath('C:/Windows/Fonts/tahomabd.ttf', 'TahomaB');
 const W = 2500;
 const H = 843;
 const PANELS = [
-  { color: '#06a94b', title: 'ยืนยันตัวตน', sub: 'ผ่านเครือข่าย AIS', icon: 'check' },
+  { color: '#06a94b', title: 'เข้าสู่ระบบ', sub: 'เริ่มใช้งาน Jump', icon: 'check' },
   { color: '#2f4bd6', title: 'ค้นหาโรงเรียน', sub: 'เปรียบเทียบสายการเรียน', icon: 'search' },
   { color: '#c8770a', title: 'แนะแนว', sub: 'ด้วย AI (Typhoon)', icon: 'cap' },
 ];
