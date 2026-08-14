@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "richmenu": "node --env-file=.env scripts/setup-richmenu.js"
   },
   "engines": {
     "node": ">=18"
@@ -15,5 +16,8 @@
     "@line/bot-sdk": "^9.9.0",
     "express": "^5.1.0",
     "openai": "^7.4.0"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.0.6"
   }
 }

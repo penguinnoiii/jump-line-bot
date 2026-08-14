@@ -5,7 +5,7 @@ services:
     name: jump-line-bot
     runtime: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install --omit=dev
     startCommand: npm start
     healthCheckPath: /
     envVars:

@@ -63,6 +63,17 @@ Keep the two values handy for Part C.
 
 ---
 
+## Rich menu (tappable buttons)
+
+The OA has a 3-button rich menu — **ยืนยันตัวตน / ค้นหาโรงเรียน / แนะแนว** — so you can demo by tapping instead of typing. Each button sends a message the bot already handles (identity verify, school comparison, guidance).
+
+- Image generator: `scripts/richmenu-image.js` (renders Thai via `@napi-rs/canvas`).
+- Setup/refresh: `npm run richmenu` (creates the menu, uploads the image, sets it as default; clears old menus first). Re-run after changing labels or button actions.
+
+Requires `@napi-rs/canvas` (a devDependency) and Windows Thai fonts; it's a one-time local setup, not needed at runtime, so it's excluded from the production/Docker build.
+
+---
+
 ## Alternative hosting — AIS Enterprise Cloud
 
 Render is used above for speed, but the app is a plain containerised Node service, so it runs on **AIS Enterprise Cloud** (VMware-based VMs / container hosts) — making the "AIS Cloud" compute layer of the architecture real. A `Dockerfile` is included.
