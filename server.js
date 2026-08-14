@@ -6,16 +6,33 @@
 import express from 'express';
 import { middleware, messagingApi } from '@line/bot-sdk';
 import { generateGuidance, resetHistory } from './src/llm.js';
-import { handleIdentityMessage } from './src/ais.js';
+import {
+  handleIdentityMessage,
+  extractThaiMobile,
+  requestOtp,
+  verifyOtp,
+  maskPhone,
+} from './src/ais.js';
 import {
   isOnboarded,
   isResetCommand,
   getProfile,
   handleOnboarding,
   syncPhoneIfOnboarded,
+  updateProfileFields,
 } from './src/onboarding.js';
 import { login as teacherLogin, verifyToken } from './src/teacher-auth.js';
-import { listRooms, listStudentsInRoom } from './src/store.js';
+import {
+  newOtpSessionId,
+  issueStudentToken,
+  verifyStudentToken,
+} from './src/dashboard-auth.js';
+import {
+  listRooms,
+  listStudentsInRoom,
+  getStudentProfile,
+  findStudentProfileByPhone,
+} from './src/store.js';
 
 const { MessagingApiClient } = messagingApi;
 
@@ -75,6 +92,82 @@ app.get('/teacher/api/rooms/:room', requireTeacherAuth, async (req, res) => {
     res.json({ students: await listStudentsInRoom(req.params.room) });
   } catch (err) {
     console.error('listStudentsInRoom error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// --- Combined dashboard entry point (rich menu "แดชบอร์ด" button) -----------
+// /dashboard is a role picker: teacher -> links to the page above; student ->
+// a self-service view/edit of their own profile, gated by the SAME AIS OTP
+// verification used everywhere else (not a name/ID lookup a classmate could
+// spoof) so a student can only ever reach their own record.
+app.get('/dashboard', (_req, res) => res.sendFile('dashboard.html', { root: 'public' }));
+
+const dashboardJson = express.json();
+
+function sanitizeStudentProfile(p) {
+  if (!p) return null;
+  const { fullName, nickname, school, studentId, grade, interest, phone, phoneVerified } = p;
+  return {
+    fullName, nickname, school, studentId, grade, interest, phoneVerified,
+    phone: phoneVerified && phone ? maskPhone(phone) : null,
+  };
+}
+
+app.post('/dashboard/api/student/request-otp', dashboardJson, async (req, res) => {
+  const phone = extractThaiMobile(req.body?.phone ?? '');
+  if (!phone) return res.status(400).json({ error: 'invalid_phone' });
+  const sessionId = newOtpSessionId();
+  const r = await requestOtp(sessionId, phone);
+  if (r.error) return res.status(502).json({ error: r.error });
+  res.json({ sessionId, mock: r.mock, code: r.mock ? r.code : undefined });
+});
+
+app.post('/dashboard/api/student/verify-otp', dashboardJson, async (req, res) => {
+  const { sessionId, code } = req.body || {};
+  if (!sessionId || !code) return res.status(400).json({ error: 'missing_fields' });
+  const r = await verifyOtp(sessionId, code);
+  if (!r.verified) {
+    return res.status(401).json({ error: r.reason || 'invalid_code' });
+  }
+  const profile = await findStudentProfileByPhone(r.phone);
+  if (!profile) {
+    return res.status(404).json({
+      error: 'not_found',
+      message: 'ยังไม่พบข้อมูลนักเรียนที่ผูกกับเบอร์นี้ กรุณาเข้าสู่ระบบผ่านแชทกับ Jump ก่อนนะคะ',
+    });
+  }
+  const token = issueStudentToken(profile.userId);
+  res.json({ token, profile: sanitizeStudentProfile(profile) });
+});
+
+function requireStudentAuth(req, res, next) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  const userId = verifyStudentToken(token);
+  if (!userId) return res.status(401).json({ error: 'unauthorized' });
+  req.studentUserId = userId;
+  next();
+}
+
+app.get('/dashboard/api/student/me', requireStudentAuth, async (req, res) => {
+  try {
+    const profile = await getStudentProfile(req.studentUserId);
+    if (!profile) return res.status(404).json({ error: 'not_found' });
+    res.json({ profile: sanitizeStudentProfile(profile) });
+  } catch (err) {
+    console.error('student profile fetch error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+app.put('/dashboard/api/student/me', dashboardJson, requireStudentAuth, async (req, res) => {
+  try {
+    const updated = await updateProfileFields(req.studentUserId, req.body || {});
+    if (!updated) return res.status(404).json({ error: 'not_found' });
+    res.json({ profile: sanitizeStudentProfile(updated) });
+  } catch (err) {
+    console.error('student profile update error:', err);
     res.status(500).json({ error: 'internal_error' });
   }
 });

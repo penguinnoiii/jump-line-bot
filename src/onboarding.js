@@ -18,7 +18,7 @@
 // logic ever sees it. The standalone dispatcher is still useful — but only
 // for an already-logged-in student re-verifying a number later.
 
-import { persistProfile } from './store.js';
+import { persistProfile, getStudentProfile } from './store.js';
 import {
   getVerifiedPhone,
   maskPhone,
@@ -173,6 +173,39 @@ export function getProfile(userId) {
   const p = profiles.get(userId);
   if (!p || p.stage !== 'done') return null;
   syncVerifiedPhone(userId, p);
+  return p;
+}
+
+/**
+ * Apply edits from the student self-service dashboard (public/dashboard.html)
+ * onto a student's own profile — the same 5 general-info fields from login,
+ * NOT phone (that stays tied to AIS OTP verification via chat). Rehydrates
+ * from the cloud copy first if this server has no live in-memory session for
+ * them (e.g. it restarted since they last chatted), so an edit still lands
+ * correctly and — importantly — the NEXT chat turn's personalization reflects
+ * it immediately, not just the teacher dashboard.
+ * @returns {Promise<object|null>} the updated profile, or null if the
+ *   student has no completed record at all (cloud or live).
+ */
+export async function updateProfileFields(userId, updates) {
+  let p = profiles.get(userId);
+  if (!p || p.stage !== 'done') {
+    const cloud = await getStudentProfile(userId);
+    if (!cloud || cloud.anonymous) return null;
+    p = { ...cloud, stage: 'done' };
+    profiles.set(userId, p);
+  }
+
+  for (const field of FIELDS) {
+    const value = updates?.[field.key];
+    if (typeof value !== 'string') continue;
+    const trimmed = value.trim();
+    if (!trimmed) continue;
+    p[field.key] = trimmed.slice(0, field.max);
+    if (field.key === 'fullName') p.nickname = extractFirstName(p[field.key]);
+  }
+
+  await persistProfile(userId, p);
   return p;
 }
 

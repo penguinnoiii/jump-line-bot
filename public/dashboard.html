@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Jump Thailand — Dashboard</title>
+<style>
+  :root {
+    --bg: #f5f7fa; --surface: #ffffff; --surface-2: #eef2f7;
+    --ink: #16202e; --muted: #586576; --faint: #8592a3;
+    --border: #e0e6ee; --border-strong: #cdd6e2;
+    --primary: #2f4bd6; --primary-soft: #e7ecff;
+    --green: #06a94b; --green-soft: #e3f6ea;
+    --shadow: 0 1px 2px rgba(18,32,50,.06), 0 8px 24px -12px rgba(18,32,50,.18);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Leelawadee UI", Tahoma, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 32px 20px 60px; }
+  h1 { font-size: 24px; margin: 0 0 4px; text-align: center; }
+  .sub { color: var(--muted); margin: 0 0 26px; font-size: 14px; text-align: center; }
+
+  .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .role-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px 14px; text-align: center; cursor: pointer; box-shadow: var(--shadow);
+    text-decoration: none; color: var(--ink); display: block;
+  }
+  .role-card:hover { border-color: var(--primary); }
+  .role-card .emoji { font-size: 32px; display: block; margin-bottom: 8px; }
+  .role-card b { font-size: 15px; }
+  .role-card small { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px; box-shadow: var(--shadow); margin-top: 18px;
+  }
+  .back { display: inline-block; margin-bottom: 14px; color: var(--muted); font-size: 13px;
+    text-decoration: none; cursor: pointer; }
+  label { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted);
+    margin: 14px 0 5px; }
+  label:first-of-type { margin-top: 0; }
+  input, textarea {
+    width: 100%; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--border-strong);
+    font-size: 14.5px; font-family: inherit; background: var(--surface);
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  input:disabled { background: var(--surface-2); color: var(--faint); }
+  button {
+    padding: 11px 14px; border-radius: 9px; border: none;
+    background: var(--primary); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+    width: 100%; margin-top: 16px;
+  }
+  button:hover { filter: brightness(1.08); }
+  button.secondary { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border-strong); }
+  .msg { font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .msg.error { color: #c0392b; }
+  .msg.ok { color: var(--green); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700;
+    padding: 5px 11px; border-radius: 999px; background: var(--green-soft); color: var(--green); }
+  .hint { font-size: 12px; color: var(--faint); margin-top: 4px; }
+  #screen-role, #screen-phone, #screen-otp, #screen-profile { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎓 Jump Dashboard</h1>
+  <p class="sub">แดชบอร์ดสำหรับครูแนะแนวและนักเรียน</p>
+
+  <div id="screen-role">
+    <div class="role-grid">
+      <a class="role-card" href="/teacher">
+        <span class="emoji">👩‍🏫</span>
+        <b>ครูแนะแนว</b>
+        <small>ดูสรุปนักเรียนแต่ละห้อง</small>
+      </a>
+      <div class="role-card" onclick="showScreen('phone')">
+        <span class="emoji">🎓</span>
+        <b>นักเรียน</b>
+        <small>ดู/แก้ไขข้อมูลของตัวเอง</small>
+      </div>
+    </div>
+  </div>
+
+  <div id="screen-phone">
+    <div class="card">
+      <span class="back" onclick="showScreen('role')">← กลับ</span>
+      <p style="margin-top:0">ยืนยันตัวตนด้วยเบอร์โทรที่ใช้ตอนเข้าสู่ระบบกับ Jump ในแชทค่ะ 📱</p>
+      <label>เบอร์โทร</label>
+      <input type="tel" id="phone-input" placeholder="0812345678" />
+      <button onclick="requestOtp()">ขอรหัส OTP</button>
+      <div class="msg error" id="phone-error"></div>
+    </div>
+  </div>
+
+  <div id="screen-otp">
+    <div class="card">
+      <span class="back" onclick="showScreen('phone')">← กลับ</span>
+      <p style="margin-top:0" id="otp-info">กรอกรหัส OTP 6 หลักที่ได้รับค่ะ</p>
+      <label>รหัส OTP</label>
+      <input type="text" id="otp-input" maxlength="6" placeholder="123456" />
+      <button onclick="verifyOtpCode()">ยืนยัน</button>
+      <div class="msg error" id="otp-error"></div>
+    </div>
+  </div>
+
+  <div id="screen-profile">
+    <div class="card">
+      <span class="back" onclick="location.reload()">← ออกจากระบบ</span>
+      <div id="profile-badge"></div>
+      <label>ชื่อ-นามสกุล</label>
+      <input id="f-fullName" />
+      <label>โรงเรียน</label>
+      <input id="f-school" />
+      <label>รหัสนักเรียน</label>
+      <input id="f-studentId" />
+      <label>ชั้น/ห้อง</label>
+      <input id="f-grade" />
+      <div class="hint">การเปลี่ยนชั้น/ห้องจะย้ายไปสรุปห้องใหม่ในหน้าครูแนะแนวด้วยค่ะ</div>
+      <label>ความสนใจ/เป้าหมาย</label>
+      <textarea id="f-interest"></textarea>
+      <div class="hint">Jump ใช้ข้อมูลนี้ปรับคำแนะนำให้ตรงกับตัวน้องมากขึ้น อัปเดตได้ทุกเมื่อ ✨</div>
+      <button onclick="saveProfile()">บันทึกการเปลี่ยนแปลง</button>
+      <div class="msg" id="save-msg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let sessionId = null;
+  let studentToken = null;
+
+  function showScreen(name) {
+    ['role', 'phone', 'otp', 'profile'].forEach((s) => {
+      document.getElementById('screen-' + s).style.display = s === name ? 'block' : 'none';
+    });
+  }
+  showScreen('role');
+
+  async function requestOtp() {
+    const phone = document.getElementById('phone-input').value;
+    const errEl = document.getElementById('phone-error');
+    errEl.textContent = '';
+    try {
+      const res = await fetch('/dashboard/api/student/request-otp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) { errEl.textContent = 'เบอร์ไม่ถูกต้องค่ะ ลองใหม่อีกครั้ง'; return; }
+      sessionId = data.sessionId;
+      document.getElementById('otp-info').textContent = data.mock
+        ? `กรอกรหัส OTP 6 หลักค่ะ (โหมดสาธิต — รหัสคือ ${data.code})`
+        : 'กรอกรหัส OTP 6 หลักที่ได้รับทาง SMS ค่ะ';
+      showScreen('otp');
+    } catch (e) {
+      errEl.textContent = 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งนะคะ';
+    }
+  }
+
+  async function verifyOtpCode() {
+    const code = document.getElementById('otp-input').value;
+    const errEl = document.getElementById('otp-error');
+    errEl.textContent = '';
+    try {
+      const res = await fetch('/dashboard/api/student/verify-otp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, code }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.message || 'รหัสไม่ถูกต้องค่ะ ลองใหม่อีกครั้ง';
+        return;
+      }
+      studentToken = data.token;
+      renderProfile(data.profile);
+      showScreen('profile');
+    } catch (e) {
+      errEl.textContent = 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งนะคะ';
+    }
+  }
+
+  function renderProfile(p) {
+    document.getElementById('f-fullName').value = p.fullName || '';
+    document.getElementById('f-school').value = p.school || '';
+    document.getElementById('f-studentId').value = p.studentId || '';
+    document.getElementById('f-grade').value = p.grade || '';
+    document.getElementById('f-interest').value = (p.interest === 'ไม่ระบุ' ? '' : p.interest) || '';
+    document.getElementById('profile-badge').innerHTML = p.phoneVerified
+      ? `<span class="badge">✅ ${escapeHtml(p.phone)} ยืนยันแล้ว</span>`
+      : '';
+  }
+
+  async function saveProfile() {
+    const msgEl = document.getElementById('save-msg');
+    msgEl.className = 'msg';
+    msgEl.textContent = 'กำลังบันทึก...';
+    const body = {
+      fullName: document.getElementById('f-fullName').value,
+      school: document.getElementById('f-school').value,
+      studentId: document.getElementById('f-studentId').value,
+      grade: document.getElementById('f-grade').value,
+      interest: document.getElementById('f-interest').value,
+    };
+    try {
+      const res = await fetch('/dashboard/api/student/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + studentToken },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) { msgEl.className = 'msg error'; msgEl.textContent = 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'; return; }
+      renderProfile(data.profile);
+      msgEl.className = 'msg ok';
+      msgEl.textContent = '✅ บันทึกแล้ว! Jump จะใช้ข้อมูลนี้ในการแนะแนวครั้งต่อไป';
+    } catch (e) {
+      msgEl.className = 'msg error';
+      msgEl.textContent = 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งนะคะ';
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = String(str ?? '');
+    return div.innerHTML;
+  }
+</script>
+</body>
+</html>

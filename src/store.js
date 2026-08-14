@@ -45,7 +45,10 @@ export function normalizeRoom(grade) {
  */
 export async function persistProfile(userId, profile) {
   const room = normalizeRoom(profile.grade);
-  const record = { ...profile, room, savedAt: Date.now() };
+  // userId is embedded so findStudentProfileByPhone() can look records up by
+  // phone and still know which record to edit. It's never rendered by
+  // public/teacher.html — that page only reads the named fields it lists.
+  const record = { ...profile, userId, room, savedAt: Date.now() };
 
   if (!cloudConfigured()) {
     memProfiles.set(userId, record);
@@ -91,4 +94,29 @@ export async function listStudentsInRoom(room) {
     records = results.map((r) => (r.result ? JSON.parse(r.result) : null)).filter(Boolean);
   }
   return records.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+}
+
+/** Direct lookup by LINE userId — used by the student dashboard to fetch/edit
+ * a single record without scanning rooms. */
+export async function getStudentProfile(userId) {
+  if (!cloudConfigured()) return memProfiles.get(userId) || null;
+  const [{ result }] = await pipeline([['GET', `jump:profile:${userId}`]]);
+  return result ? JSON.parse(result) : null;
+}
+
+/**
+ * Find a completed profile by its verified phone (E.164). Used to log a
+ * student into the self-service dashboard after they verify the same phone
+ * via OTP — deliberately NOT name/student-ID lookup, which a classmate could
+ * guess; this ties dashboard access to the same AIS verification already
+ * trusted everywhere else in the app.
+ */
+export async function findStudentProfileByPhone(phone) {
+  const rooms = await listRooms();
+  for (const { room } of rooms) {
+    const students = await listStudentsInRoom(room);
+    const match = students.find((s) => s.phone === phone);
+    if (match) return match;
+  }
+  return null;
 }
