@@ -96,30 +96,36 @@ async function handleEvent(event) {
   if (!userText) return;
 
   try {
-    // AIS identity step: OTP flow or Number Verification, handled via AIS Open
-    // API before falling through to the guidance LLM. Returns null for normal
-    // messages.
-    const identityReply = await handleIdentityMessage(userId, userText);
-    if (identityReply) {
-      // Link a newly-verified phone onto an already-logged-in student's
-      // record immediately, rather than waiting for their next message.
-      syncPhoneIfOnboarded(userId);
+    // Onboarding gate ("log in"): consent → phone verification (AIS OTP,
+    // required) → 5 general-info questions. Students can't reach the
+    // guidance LLM until this completes. A reset command works even for an
+    // already-onboarded student.
+    //
+    // This MUST run before the standalone AIS dispatcher below — otherwise a
+    // bare phone number typed at the in-flow 'phone' step gets intercepted
+    // by the standalone silent-Number-Verification path instead of starting
+    // the in-flow OTP request.
+    if (!isOnboarded(userId) || isResetCommand(userText)) {
+      if (isResetCommand(userText)) resetHistory(userId);
+      const onboardingReply = await handleOnboarding(userId, userText);
       await client.replyMessage({
         replyToken: event.replyToken,
-        messages: [{ type: 'text', text: identityReply }],
+        messages: [{ type: 'text', text: onboardingReply }],
       });
       return;
     }
 
-    // Onboarding gate ("log in"): consent → nickname → grade → interest.
-    // Students can't reach the guidance LLM until this completes. A reset
-    // command works even for an already-onboarded student.
-    if (!isOnboarded(userId) || isResetCommand(userText)) {
-      if (isResetCommand(userText)) resetHistory(userId);
-      const onboardingReply = handleOnboarding(userId, userText);
+    // Standalone AIS identity step, for an already-logged-in student who
+    // wants to (re-)verify a number — e.g. after "เปลี่ยนเบอร์" outside the
+    // login flow. Returns null for normal messages.
+    const identityReply = await handleIdentityMessage(userId, userText);
+    if (identityReply) {
+      // Link a newly-verified phone onto their record immediately, rather
+      // than waiting for their next message.
+      syncPhoneIfOnboarded(userId);
       await client.replyMessage({
         replyToken: event.replyToken,
-        messages: [{ type: 'text', text: onboardingReply }],
+        messages: [{ type: 'text', text: identityReply }],
       });
       return;
     }
