@@ -211,11 +211,34 @@
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + studentToken },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!res.ok) { msgEl.className = 'msg error'; msgEl.textContent = 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'; return; }
-      renderProfile(data.profile);
-      msgEl.className = 'msg ok';
-      msgEl.textContent = '✅ บันทึกแล้ว! Jump จะใช้ข้อมูลนี้ในการแนะแนวครั้งต่อไป';
+      let data = null;
+      try { data = await res.json(); } catch (_) { /* non-JSON response, handled below */ }
+
+      if (res.ok && data?.profile) {
+        renderProfile(data.profile);
+        msgEl.className = 'msg ok';
+        msgEl.textContent = '✅ บันทึกแล้ว! Jump จะใช้ข้อมูลนี้ในการแนะแนวครั้งต่อไป';
+        return;
+      }
+
+      // The PUT looked like it failed (bad status, dropped connection, or a
+      // non-JSON response from a slow/cold server) — before telling the
+      // student it failed, re-check with a GET. If the save actually landed
+      // server-side, say so instead of a false "unsuccess".
+      const recheck = await fetch('/dashboard/api/student/me', {
+        headers: { Authorization: 'Bearer ' + studentToken },
+      }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+
+      if (recheck?.profile && recheck.profile.fullName === body.fullName &&
+          recheck.profile.school === body.school && recheck.profile.studentId === body.studentId) {
+        renderProfile(recheck.profile);
+        msgEl.className = 'msg ok';
+        msgEl.textContent = '✅ บันทึกแล้ว! (เชื่อมต่อช้าไปนิดหน่อย แต่ข้อมูลบันทึกสำเร็จค่ะ)';
+        return;
+      }
+
+      msgEl.className = 'msg error';
+      msgEl.textContent = `บันทึกไม่สำเร็จ${res.status ? ' (โค้ด ' + res.status + ')' : ''} ลองใหม่อีกครั้งนะคะ`;
     } catch (e) {
       msgEl.className = 'msg error';
       msgEl.textContent = 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งนะคะ';
