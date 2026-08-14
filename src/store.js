@@ -42,6 +42,8 @@ export function normalizeRoom(grade) {
 /**
  * Persist a completed (non-anonymous) student profile, indexed by room.
  * Re-saving the same userId overwrites their previous record (no history).
+ * If their room/grade changed since the last save, removes them from the
+ * OLD room's index so they don't show up twice on the teacher dashboard.
  */
 export async function persistProfile(userId, profile) {
   const room = normalizeRoom(profile.grade);
@@ -51,6 +53,10 @@ export async function persistProfile(userId, profile) {
   const record = { ...profile, userId, room, savedAt: Date.now() };
 
   if (!cloudConfigured()) {
+    const prev = memProfiles.get(userId);
+    if (prev && prev.room && prev.room !== room) {
+      memRooms.get(prev.room)?.delete(userId);
+    }
     memProfiles.set(userId, record);
     if (!memRooms.has(room)) memRooms.set(room, new Set());
     memRooms.get(room).add(userId);
@@ -58,11 +64,25 @@ export async function persistProfile(userId, profile) {
     return { mock: true };
   }
 
-  await pipeline([
+  // Read the previous room (if any) so a changed grade moves the student
+  // instead of leaving a stale duplicate behind.
+  const prevRoom = await getStudentProfile(userId).then((p) => p?.room);
+  const commands = [
     ['SET', `jump:profile:${userId}`, JSON.stringify(record)],
     ['SADD', `jump:room:${room}`, userId],
     ['SADD', 'jump:rooms', room],
-  ]);
+  ];
+  if (prevRoom && prevRoom !== room) {
+    commands.push(['SREM', `jump:room:${prevRoom}`, userId]);
+  }
+  await pipeline(commands);
+
+  // If that emptied the old room, drop it from the room list too.
+  if (prevRoom && prevRoom !== room) {
+    const [{ result: remaining }] = await pipeline([['SCARD', `jump:room:${prevRoom}`]]);
+    if (!remaining) await pipeline([['SREM', 'jump:rooms', prevRoom]]);
+  }
+
   return { mock: false };
 }
 
