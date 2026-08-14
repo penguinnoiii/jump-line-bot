@@ -1,0 +1,19 @@
+# Render Blueprint. In Render: New > Blueprint, point at this repo.
+# Then set the three secret env vars in the dashboard (they are not stored here).
+services:
+  - type: web
+    name: jump-line-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: LINE_CHANNEL_SECRET
+        sync: false
+      - key: TYPHOON_API_KEY
+        sync: false
+      - key: TYPHOON_MODEL
+        value: typhoon-v2.5-30b-a3b-instruct

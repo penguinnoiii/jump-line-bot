@@ -1,0 +1,19 @@
+{
+  "name": "jump-line-bot",
+  "version": "1.0.0",
+  "description": "Jump Thailand — LINE OA education guidance chatbot (Messaging API webhook + Claude)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@line/bot-sdk": "^9.9.0",
+    "express": "^5.1.0",
+    "openai": "^7.4.0"
+  }
+}
