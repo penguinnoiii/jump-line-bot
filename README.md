@@ -97,6 +97,9 @@ git push -u origin main
 - `server.js` — verifies the LINE signature, acks fast, routes text messages to the LLM, replies.
 - `src/prompts.js` — the system prompt encoding the **advisor role and ethics guardrails** from the brief: AI can search/summarize/compare, but is a *decision-support tool, not the decider of a child's future*; Human-in-the-loop for "เหมาะ/ไม่เหมาะ" calls; PDPA-aware; honest that this demo has no live central database yet.
 - `src/llm.js` — calls **Typhoon** (Thai LLM) via the OpenAI-compatible API and keeps a short in-memory chat history per user.
+- `src/ais.js` — **AIS Open API: Number Verification**. Confirms a phone number on the AIS network for the *"ยืนยันตัวตน / ยืนยันเบอร์"* step of the user flow. Built to the GSMA/CAMARA Number Verification standard that AIS follows, fully env-var configurable. Runs in **mock mode** until AIS credentials are set (get them from `jumpthailand@ais.co.th`), so the demo works today and goes live the moment keys are added.
+
+**Try the AIS step in LINE:** send a Thai mobile number (e.g. `0812345678`) or *"ยืนยันเบอร์ 0812345678"* — the bot runs it through AIS Number Verification before continuing to guidance. To go live, set the `AIS_*` vars from `.env.example`.
 
 **Swapping the model:** Typhoon uses an OpenAI-compatible API, so any other OpenAI-compatible provider (Gemini via its compat endpoint, Groq, OpenRouter, or self-hosted OpenThaiGPT) works by changing `TYPHOON_BASE_URL`, `TYPHOON_API_KEY`, and `TYPHOON_MODEL` — no code change.
 

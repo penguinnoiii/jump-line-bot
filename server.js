@@ -5,6 +5,7 @@
 import express from 'express';
 import { middleware, messagingApi } from '@line/bot-sdk';
 import { generateGuidance } from './src/llm.js';
+import { parseVerifyIntent, verifyPhoneNumber } from './src/ais.js';
 
 const { MessagingApiClient } = messagingApi;
 
@@ -45,6 +46,32 @@ async function handleEvent(event) {
   if (!userText) return;
 
   try {
+    // AIS Number Verification step ("ยืนยันตัวตน / ยืนยันเบอร์" in the flow):
+    // if the message is a phone-verification request, handle it via AIS Open
+    // API before falling through to the guidance LLM.
+    const phone = parseVerifyIntent(userText);
+    if (phone) {
+      const result = await verifyPhoneNumber(phone);
+      const masked = phone.replace(/(\+66\d{2})\d{5}(\d{2})/, '$1xxxxx$2');
+      let reply;
+      if (result.verified) {
+        reply =
+          `✅ ยืนยันเบอร์ ${masked} เรียบร้อยผ่านเครือข่าย AIS แล้วค่ะ\n` +
+          'ต่อไปเล่าให้ฟังได้เลยว่าตอนนี้เรียนอยู่ชั้นไหน สนใจอะไร อยากให้ช่วยแนะแนวเรื่องใด 😊' +
+          (result.mock ? '\n\n(โหมดสาธิต — ยังไม่ได้ต่อ AIS จริง)' : '');
+      } else {
+        reply =
+          `⚠️ ยืนยันเบอร์ ${masked} ไม่สำเร็จค่ะ` +
+          (result.error ? ` (${result.error})` : '') +
+          '\nลองใหม่อีกครั้ง หรือถามเรื่องการเรียนต่อได้เลยนะคะ';
+      }
+      await client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: 'text', text: reply }],
+      });
+      return;
+    }
+
     const reply = await generateGuidance(userId, userText);
     await client.replyMessage({
       replyToken: event.replyToken,
