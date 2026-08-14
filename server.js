@@ -137,14 +137,14 @@ app.post('/dashboard/api/student/verify-otp', dashboardJson, async (req, res) =>
       message: 'ยังไม่พบข้อมูลนักเรียนที่ผูกกับเบอร์นี้ กรุณาเข้าสู่ระบบผ่านแชทกับ Jump ก่อนนะคะ',
     });
   }
-  const token = issueStudentToken(profile.userId);
+  const token = await issueStudentToken(profile.userId);
   res.json({ token, profile: sanitizeStudentProfile(profile) });
 });
 
-function requireStudentAuth(req, res, next) {
+async function requireStudentAuth(req, res, next) {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  const userId = verifyStudentToken(token);
+  const userId = await verifyStudentToken(token);
   if (!userId) return res.status(401).json({ error: 'unauthorized' });
   req.studentUserId = userId;
   next();

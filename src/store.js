@@ -19,7 +19,9 @@ const memProfiles = new Map(); // userId -> profile object
 const memRooms = new Map(); // room -> Set(userId)
 
 // --- Upstash REST pipeline ----------------------------------------------------
-async function pipeline(commands) {
+// Exported so other modules needing durable KV storage (e.g. dashboard-auth.js's
+// session tokens) can share this one REST client instead of duplicating it.
+export async function pipeline(commands) {
   const res = await fetch(`${REST_URL}/pipeline`, {
     method: 'POST',
     headers: {
