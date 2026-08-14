@@ -139,7 +139,8 @@ git push -u origin main
 
 - `server.js` — verifies the LINE signature, acks fast, routes text messages to the LLM, replies.
 - `src/prompts.js` — the system prompt encoding the **advisor role and ethics guardrails** from the brief: AI can search/summarize/compare, but is a *decision-support tool, not the decider of a child's future*; Human-in-the-loop for "เหมาะ/ไม่เหมาะ" calls; PDPA-aware; honest that this demo has no live central database yet.
-- `src/llm.js` — calls **Typhoon** (Thai LLM) via the OpenAI-compatible API and keeps a short in-memory chat history per user.
+- `src/llm.js` — calls **Typhoon** (Thai LLM) via the OpenAI-compatible API, grounds answers in live web search when needed, and keeps a short in-memory chat history per user.
+- `src/search.js` — **live web grounding** (the bridge to a real Central Education Database): a keyword heuristic detects questions needing current facts (schools, admissions, tuition, deadlines), searches the web via **Tavily**, and feeds real results into the LLM with citation instructions. Replies get a **📎 แหล่งข้อมูล** (sources) list with real clickable links. No `TAVILY_API_KEY` → search is skipped and the bot falls back to the honest "this is general knowledge, verify at the source" behavior — never fabricated data.
 - `src/ais.js` — **AIS Open API** identity services for the *"ยืนยันตัวตน"* step:
   - **Number Verification** (GSMA/CAMARA) — confirm a phone number silently on the AIS network.
   - **OTP API** — send a one-time password by SMS and verify it (2-step).
@@ -153,4 +154,6 @@ To go live, set the `AIS_*` vars from `.env.example`.
 
 **Swapping the model:** Typhoon uses an OpenAI-compatible API, so any other OpenAI-compatible provider (Gemini via its compat endpoint, Groq, OpenRouter, or self-hosted OpenThaiGPT) works by changing `TYPHOON_BASE_URL`, `TYPHOON_API_KEY`, and `TYPHOON_MODEL` — no code change.
 
-**Honest scope for judges:** this proves the LINE OA → AI → student loop end to end, running on a **Thai LLM** (nice "sovereign AI" story). The AI currently answers from general knowledge with "verify at the source" disclaimers; wiring the **Central Education Database** (the architecture layer) is the next step, not the chatbot itself.
+**Honest scope for judges:** this proves the LINE OA → AI → student loop end to end, running on a **Thai LLM** (nice "sovereign AI" story). Factual questions are now **grounded in live web search** with real citations instead of pure model memory — a working bridge to the planned **Central Education Database**, which will replace open web search with a curated, verified feed once the ministry/school data pipeline exists.
+
+**Try it:** ask something specific — *"ทุนการศึกษาโรงเรียนมหิดลวิทยานุสรณ์มีอะไรบ้าง"* or *"TCAS68 รอบไหนเปิดรับตอนไหน"* — with `TAVILY_API_KEY` set, the reply cites real sources and ends with a **📎 แหล่งข้อมูล** link list.

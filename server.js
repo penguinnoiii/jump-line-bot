@@ -58,10 +58,14 @@ async function handleEvent(event) {
       return;
     }
 
-    const reply = await generateGuidance(userId, userText);
+    const { text, sources } = await generateGuidance(userId, userText);
+    const sourceBlock = sources.length
+      ? '\n\n📎 แหล่งข้อมูล:\n' +
+        sources.map((s, i) => `${i + 1}. ${s.title}\n${s.url}`).join('\n')
+      : '';
     await client.replyMessage({
       replyToken: event.replyToken,
-      messages: [{ type: 'text', text: reply }],
+      messages: [{ type: 'text', text: text + sourceBlock }],
     });
   } catch (err) {
     console.error('handleEvent error:', err);
