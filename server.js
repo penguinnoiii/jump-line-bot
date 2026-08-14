@@ -13,6 +13,8 @@ import {
   getProfile,
   handleOnboarding,
 } from './src/onboarding.js';
+import { login as teacherLogin, verifyToken } from './src/teacher-auth.js';
+import { listRooms, listStudentsInRoom } from './src/store.js';
 
 const { MessagingApiClient } = messagingApi;
 
@@ -35,6 +37,46 @@ const app = express();
 
 // Health check (also lets you confirm the deploy is live in a browser).
 app.get('/', (_req, res) => res.send('Jump Thailand LINE bot is running ✅'));
+
+// --- Teacher dashboard ("Teacher View") -------------------------------------
+// Static page + a small password-gated JSON API. express.json() is scoped to
+// these routes only — it must never run in front of /webhook, which needs
+// the raw body for LINE's signature check.
+app.get('/teacher', (_req, res) => res.sendFile('teacher.html', { root: 'public' }));
+app.use('/teacher', express.static('public'));
+
+const teacherJson = express.json();
+
+app.post('/teacher/api/login', teacherJson, (req, res) => {
+  const token = teacherLogin(req.body?.password ?? '');
+  if (!token) return res.status(401).json({ error: 'invalid_password' });
+  res.json({ token });
+});
+
+function requireTeacherAuth(req, res, next) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (!verifyToken(token)) return res.status(401).json({ error: 'unauthorized' });
+  next();
+}
+
+app.get('/teacher/api/rooms', requireTeacherAuth, async (_req, res) => {
+  try {
+    res.json({ rooms: await listRooms() });
+  } catch (err) {
+    console.error('listRooms error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+app.get('/teacher/api/rooms/:room', requireTeacherAuth, async (req, res) => {
+  try {
+    res.json({ students: await listStudentsInRoom(req.params.room) });
+  } catch (err) {
+    console.error('listStudentsInRoom error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
 
 // LINE webhook. `middleware` reads the raw body and verifies the signature —
 // do NOT put express.json() in front of it on this route.

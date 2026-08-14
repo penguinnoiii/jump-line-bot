@@ -3,8 +3,11 @@
 //   ข้อมูลพื้นฐาน (nickname, grade) · ความสนใจ · ความถนัด · ผลการเรียน · Skill ·
 //   กิจกรรม · เป้าหมาย · โรงเรียน/สายที่สนใจ · ข้อจำกัดต่าง ๆ
 //
-// In-memory per LINE user — resets on restart; fine for a demo, swap for a
-// store (Redis/DB) for production.
+// The live state machine below stays in-memory (fast, synchronous, per-turn).
+// A completed (non-anonymous) profile is also persisted to the cloud store
+// (src/store.js) so a guidance teacher can look it up later, grouped by room.
+
+import { persistProfile } from './store.js';
 
 const profiles = new Map(); // userId -> { stage, ...fields, anonymous, consentAt, completedAt }
 
@@ -26,10 +29,10 @@ const FIELDS = [
   },
   {
     key: 'grade',
-    label: 'ระดับชั้น (ข้อมูลพื้นฐาน)',
+    label: 'ชั้น/ห้อง (ข้อมูลพื้นฐาน)',
     max: 40,
     question: (p) =>
-      `ยินดีที่ได้รู้จักน้อง${p.nickname}ค่ะ 🎓 ตอนนี้เรียนอยู่ชั้นอะไรคะ? (เช่น ม.3, ม.6, ปวช.ปี 2)`,
+      `ยินดีที่ได้รู้จักน้อง${p.nickname}ค่ะ 🎓 ตอนนี้เรียนอยู่ชั้น/ห้องอะไรคะ? (เช่น ม.6/3, ม.3/1, ปวช.ปี 2/2)`,
   },
   {
     key: 'interest',
@@ -190,6 +193,11 @@ export function handleOnboarding(userId, text) {
   if (!next) {
     p.stage = 'done';
     p.completedAt = Date.now();
+    // Persist to the cloud store for teacher lookup. Fire-and-forget: don't
+    // make the student wait on a network call to get their "done" reply.
+    persistProfile(userId, p).catch((err) =>
+      console.error('[onboarding] persistProfile failed:', err),
+    );
     return doneSummary(p);
   }
   p.stage = next.key;

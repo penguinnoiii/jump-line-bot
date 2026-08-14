@@ -77,7 +77,7 @@ export async function generateGuidance(userId, userText, profile = null) {
 
   const completion = await client.chat.completions.create({
     model: MODEL,
-    max_tokens: 1024,
+    max_tokens: 700, // shorter, chat-style replies (see prompts.js)
     temperature: 0.4,
     messages,
   });

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Jump Thailand — Teacher View</title>
+<style>
+  :root {
+    --bg: #f5f7fa; --surface: #ffffff; --surface-2: #eef2f7;
+    --ink: #16202e; --muted: #586576; --faint: #8592a3;
+    --border: #e0e6ee; --border-strong: #cdd6e2;
+    --primary: #2f4bd6; --primary-soft: #e7ecff;
+    --shadow: 0 1px 2px rgba(18,32,50,.06), 0 8px 24px -12px rgba(18,32,50,.18);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Leelawadee UI", Tahoma, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 32px 20px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 28px; font-size: 14px; }
+
+  #login-view { max-width: 360px; margin: 60px auto; text-align: center; }
+  #login-view h1 { font-size: 26px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px; box-shadow: var(--shadow);
+  }
+  input[type="password"] {
+    width: 100%; padding: 11px 14px; border-radius: 9px; border: 1px solid var(--border-strong);
+    font-size: 15px; margin-bottom: 12px; background: var(--surface);
+  }
+  button {
+    width: 100%; padding: 11px 14px; border-radius: 9px; border: none;
+    background: var(--primary); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  .error { color: #c0392b; font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+  #app-view { display: none; }
+  .rooms { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 26px; }
+  .room-chip {
+    background: var(--surface); border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 9px 16px; cursor: pointer; font-size: 14px; font-weight: 600;
+  }
+  .room-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .room-chip .count { color: var(--faint); font-weight: 500; }
+  .room-chip.active .count { color: rgba(255,255,255,.8); }
+
+  .students { display: grid; gap: 14px; }
+  .student-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; box-shadow: var(--shadow);
+  }
+  .student-card h3 { margin: 0 0 8px; font-size: 16px; }
+  .student-card h3 .room { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .fields { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; font-size: 13.5px; }
+  .fields dt { color: var(--muted); }
+  .fields dd { margin: 0; }
+  .empty { color: var(--faint); text-align: center; padding: 30px 0; }
+  .logout { float: right; font-size: 13px; color: var(--muted); cursor: pointer; text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="login-view">
+    <h1>🎓 Jump — Teacher View</h1>
+    <p class="sub">ระบบดูสรุปข้อมูลนักเรียนสำหรับครูแนะแนว</p>
+    <div class="card">
+      <input type="password" id="password" placeholder="รหัสผ่านครู" autofocus />
+      <button onclick="login()">เข้าสู่ระบบ</button>
+      <div class="error" id="login-error"></div>
+    </div>
+  </div>
+
+  <div id="app-view">
+    <span class="logout" onclick="logout()">ออกจากระบบ</span>
+    <h1>🎓 Jump — Teacher View</h1>
+    <p class="sub">คลิกเลือกห้องเพื่อดูสรุปข้อมูลนักเรียนในห้องนั้น</p>
+    <div class="rooms" id="rooms"></div>
+    <div class="students" id="students"></div>
+  </div>
+
+</div>
+
+<script>
+  let token = null;
+  const FIELD_LABELS = [
+    ['grade', 'ชั้น/ห้อง'], ['interest', 'ความสนใจ'], ['aptitude', 'ความถนัด'],
+    ['academicResults', 'ผลการเรียน'], ['skills', 'Skill'], ['activities', 'กิจกรรม'],
+    ['goals', 'เป้าหมาย'], ['schoolTrack', 'โรงเรียน/สายที่สนใจ'], ['constraints', 'ข้อจำกัด'],
+  ];
+
+  async function login() {
+    const password = document.getElementById('password').value;
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = '';
+    try {
+      const res = await fetch('/teacher/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) { errEl.textContent = 'รหัสผ่านไม่ถูกต้อง'; return; }
+      const data = await res.json();
+      token = data.token;
+      document.getElementById('login-view').style.display = 'none';
+      document.getElementById('app-view').style.display = 'block';
+      loadRooms();
+    } catch (e) {
+      errEl.textContent = 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง';
+    }
+  }
+
+  function logout() {
+    token = null;
+    document.getElementById('app-view').style.display = 'none';
+    document.getElementById('login-view').style.display = 'block';
+    document.getElementById('password').value = '';
+  }
+
+  async function loadRooms() {
+    const res = await fetch('/teacher/api/rooms', { headers: { Authorization: 'Bearer ' + token } });
+    if (res.status === 401) return logout();
+    const { rooms } = await res.json();
+    const el = document.getElementById('rooms');
+    el.innerHTML = '';
+    if (rooms.length === 0) {
+      el.innerHTML = '<span class="empty">ยังไม่มีนักเรียนกรอกข้อมูลเลยค่ะ</span>';
+      return;
+    }
+    rooms.forEach((r, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'room-chip' + (i === 0 ? ' active' : '');
+      chip.innerHTML = `${escapeHtml(r.room)} <span class="count">(${r.count})</span>`;
+      chip.onclick = () => selectRoom(r.room, chip);
+      el.appendChild(chip);
+    });
+    if (rooms.length) loadStudents(rooms[0].room);
+  }
+
+  function selectRoom(room, chipEl) {
+    document.querySelectorAll('.room-chip').forEach((c) => c.classList.remove('active'));
+    chipEl.classList.add('active');
+    loadStudents(room);
+  }
+
+  async function loadStudents(room) {
+    const res = await fetch('/teacher/api/rooms/' + encodeURIComponent(room), {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    if (res.status === 401) return logout();
+    const { students } = await res.json();
+    const el = document.getElementById('students');
+    el.innerHTML = '';
+    if (!students.length) { el.innerHTML = '<div class="empty">ไม่มีนักเรียนในห้องนี้</div>'; return; }
+    students.forEach((s) => {
+      const card = document.createElement('div');
+      card.className = 'student-card';
+      const fields = FIELD_LABELS.filter(([k]) => k !== 'grade' && s[k])
+        .map(([k, label]) => `<dt>${label}</dt><dd>${escapeHtml(s[k])}</dd>`).join('');
+      card.innerHTML =
+        `<h3>👤 ${escapeHtml(s.nickname || 'ไม่ระบุชื่อ')} <span class="room">· ${escapeHtml(s.room || '')}</span></h3>` +
+        `<dl class="fields">${fields}</dl>`;
+      el.appendChild(card);
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = String(str ?? '');
+    return div.innerHTML;
+  }
+
+  document.getElementById('password').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') login();
+  });
+</script>
+</body>
+</html>
