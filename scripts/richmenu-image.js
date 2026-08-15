@@ -1,4 +1,5 @@
-// Generates the LINE rich-menu image (2500x843) as a PNG buffer, by
+// Generates the LINE rich-menu image (2500x1686, LINE's "full-size" rich
+// menu template) as a PNG buffer, by
 // compositing pre-made panel illustrations (scripts/assets/richmenu/) into a
 // 2-column layout: dashboard as one big panel on the left, the other two
 // stacked vertically in a narrower column on the right.
@@ -17,7 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = path.join(__dirname, 'assets', 'richmenu');
 
 const W = 2500;
-const H = 843;
+const H = 1686; // full-size template — 2x compact's 843, well within LINE's 250-1686 range
 
 const LEFT_W = 1500; // dashboard column — the "biggest" panel
 const RIGHT_W = W - LEFT_W;
@@ -79,7 +80,11 @@ export async function buildRichMenuPng() {
   ctx.lineTo(W, ROW_H);
   ctx.stroke();
 
-  return canvas.toBuffer('image/png');
+  // JPEG, not PNG: at full-size resolution (2x compact's pixel count) the
+  // PNG encoding of these photographic-gradient illustrations comes out
+  // above LINE's 1MB rich-menu image cap. JPEG at this quality is visually
+  // identical for this content and lands well under it (~0.3-0.4MB).
+  return canvas.toBuffer('image/jpeg', 92);
 }
 
 export const PANEL_BOUNDS = PANELS.map((p) => ({

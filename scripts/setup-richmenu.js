@@ -47,10 +47,10 @@ async function main() {
   console.log('created rich menu', richMenuId);
 
   // 3) Upload the image.
-  const png = await buildRichMenuPng();
+  const jpeg = await buildRichMenuPng();
   await blobClient.setRichMenuImage(
     richMenuId,
-    new Blob([png], { type: 'image/png' }),
+    new Blob([jpeg], { type: 'image/jpeg' }),
   );
   console.log('uploaded image');
 
