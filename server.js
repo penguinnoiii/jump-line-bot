@@ -5,8 +5,9 @@
 
 import express from 'express';
 import { middleware, messagingApi } from '@line/bot-sdk';
-import { generateGuidance, resetHistory, summarizeConversation } from './src/llm.js';
+import { generateGuidance, resetHistory, summarizeConversation, extractConfirmedInterest } from './src/llm.js';
 import { buildGuidanceFlexMessage, parseGuidanceStructure } from './src/richMessage.js';
+import { findMatchingEvent, buildEventCard } from './src/events.js';
 import {
   handleIdentityMessage,
   extractThaiMobile,
@@ -223,11 +224,30 @@ app.post('/demo/api/chat', demoJson, async (req, res) => {
     }
 
     if (!isOnboarded(sessionId) || isResetCommand(userText)) {
+      const wasOnboarded = isOnboarded(sessionId);
       if (isResetCommand(userText)) resetHistory(sessionId);
       const reply = await handleOnboarding(sessionId, userText, true);
+
+      // Onboarding just completed this turn — if the student named a real
+      // interest (not "ข้าม"), surface a matching Open House / activity card
+      // right away, the same "แจ้งเตือนตามความสนใจ" notification a returning
+      // student would get later when a new interest comes up mid-chat.
+      let eventCard = null;
+      if (!wasOnboarded && isOnboarded(sessionId)) {
+        const profile = getProfile(sessionId);
+        if (profile?.interest && profile.interest !== 'ไม่ระบุ') {
+          const event = findMatchingEvent(profile.interest);
+          if (event) {
+            eventCard = buildEventCard(event, profile.interest);
+            profile.shownEventIds = [event.id];
+          }
+        }
+      }
+
       return res.json({
         reply,
         quickReplies: needsRoleQuickReply(sessionId) ? ['นักเรียน', 'คุณครู'] : [],
+        eventCard,
       });
     }
 
@@ -251,10 +271,11 @@ app.post('/demo/api/chat', demoJson, async (req, res) => {
       return res.json({ reply: identityReply, quickReplies: [] });
     }
 
+    const profile = getProfile(sessionId);
     const { text: reply, sources } = await generateGuidance(
       sessionId,
       userText,
-      getProfile(sessionId),
+      profile,
     );
     // `card` mirrors what the real LINE bot renders as a Flex Message
     // (see src/richMessage.js) — lets the demo site show the same
@@ -266,16 +287,39 @@ app.post('/demo/api/chat', demoJson, async (req, res) => {
       ? '\n\n📎 แหล่งข้อมูล:\n' +
         sources.map((s, i) => `${i + 1}. ${s.title}\n${s.url}`).join('\n')
       : '';
-    res.json({ reply: reply + sourceBlock, quickReplies: [], card });
+
+    // A notification queued by the interest check below (fired after a
+    // PREVIOUS reply, since that check itself runs fire-and-forget and
+    // can't hold this response up) is delivered on the next message the
+    // student sends — same "arrived between turns" feel as a real push.
+    const eventCard = profile?.pendingEventCard || null;
+    if (profile) profile.pendingEventCard = null;
+
+    res.json({ reply: reply + sourceBlock, quickReplies: [], card, eventCard });
 
     // Fire-and-forget, same as the real LINE flow — updateConversationSummary
     // keeps this in-memory only for demo sessions (see its own doc comment),
     // never touching the real cloud store.
-    const profileForSummary = getProfile(sessionId);
-    if (profileForSummary) {
-      summarizeConversation(sessionId, profileForSummary.conversationSummary)
+    if (profile) {
+      summarizeConversation(sessionId, profile.conversationSummary)
         .then((summary) => updateConversationSummary(sessionId, summary))
         .catch((err) => console.error('[demo] conversation summary error:', err));
+
+      // "ย่อยความชอบ...เข้าไปในความชอบล่าสุด" — only counts a new interest
+      // when this exchange reached a clear, confirmed conclusion (the
+      // student said it themselves, or agreed when Jump asked), never from
+      // a vague guess. Queued as a notification for the NEXT message rather
+      // than blocking this reply.
+      extractConfirmedInterest(userText, reply, profile.recentInterests || [])
+        .then((interest) => {
+          if (!interest) return;
+          profile.recentInterests = [...(profile.recentInterests || []), interest].slice(-10);
+          const event = findMatchingEvent(interest, profile.shownEventIds || []);
+          if (!event) return;
+          profile.pendingEventCard = buildEventCard(event, interest);
+          profile.shownEventIds = [...(profile.shownEventIds || []), event.id];
+        })
+        .catch((err) => console.error('[demo] interest extraction error:', err));
     }
   } catch (err) {
     console.error('demo chat error:', err);

@@ -167,3 +167,47 @@ export async function summarizeConversation(userId, existingSummary = null) {
     return null;
   }
 }
+
+/**
+ * Cheap classifier for the demo site's "แจ้งเตือนตามความสนใจ" feature: decide
+ * whether this one exchange reached a clear, confirmed conclusion about
+ * something new the student likes — either the student stated it directly,
+ * or Jump asked whether they were interested and the student agreed. Vague
+ * or unconfirmed mentions ("อาจจะชอบ...") must NOT count, by design — only a
+ * clear yes, no matter how small the interest is (liking a game counts just
+ * as much as naming a whole career track).
+ * @param {string} userText  the student's latest message
+ * @param {string} replyText  Jump's reply to it
+ * @param {string[]} [knownInterests]  already-recorded interests, so the
+ *   model doesn't re-flag the same thing
+ * @returns {Promise<string|null>} a short Thai interest tag, or null
+ */
+export async function extractConfirmedInterest(userText, replyText, knownInterests = []) {
+  const prompt =
+    'อ่านข้อความคู่นี้ระหว่างนักเรียนกับ Jump (แชทบอทแนะแนวการศึกษา) แล้วตัดสินว่านักเรียน ' +
+    '"ยืนยันความสนใจใหม่" อย่างชัดเจนหรือไม่ นับเป็นการยืนยันเฉพาะกรณี: ' +
+    '(1) นักเรียนบอกเองตรง ๆ ว่าชอบ/สนใจอะไร หรือ ' +
+    '(2) Jump ถามว่าสนใจเรื่องนี้ไหม แล้วนักเรียนตอบรับชัดเจน ' +
+    'ความสนใจเล็กน้อยแค่ไหนก็นับ (เช่น ชอบวาดรูป ชอบเกม ชอบสัตว์) ไม่ต้องเป็นสายเรียน/อาชีพใหญ่ ๆ เท่านั้น ' +
+    'ถ้าเป็นแค่การถามข้อมูลทั่วไป หรือพูดคลุมเครือไม่ชัดเจน (เช่น "อาจจะ", "ไม่แน่ใจ") ห้ามนับ ให้ตอบคำเดียวว่า "ไม่มี"' +
+    (knownInterests.length
+      ? `\n\nความสนใจที่บันทึกไว้แล้ว: ${knownInterests.join(', ')} — ถ้าซ้ำกับเรื่องเดิม ให้ตอบ "ไม่มี"`
+      : '') +
+    `\n\nนักเรียน: ${userText}\nJump: ${replyText}\n\n` +
+    'ถ้ามีการยืนยันความสนใจใหม่จริง ให้ตอบเป็นวลีสั้น ๆ ไม่เกิน 6 คำ (เช่น "ชอบวาดรูป", "สนใจหุ่นยนต์") ' +
+    'ห้ามมีคำอธิบายอื่นนอกจากวลีนั้น หรือคำว่า "ไม่มี"';
+
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: { temperature: 0.1, maxOutputTokens: 30 },
+    });
+    const out = response.text?.trim() || '';
+    if (!out || out === 'ไม่มี' || out.length > 40) return null;
+    return out;
+  } catch (err) {
+    console.error('[llm] extractConfirmedInterest failed:', err);
+    return null;
+  }
+}
