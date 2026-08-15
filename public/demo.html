@@ -214,7 +214,7 @@
      changes whether the menu is open or collapsed, just like the real app. */
   .live__richmenu-popup {
     position: absolute; left: 0; right: 0; bottom: 100%; z-index: 5;
-    display: flex; flex-direction: column; box-shadow: 0 -8px 20px -8px rgba(0,0,0,.35);
+    box-shadow: 0 -8px 20px -8px rgba(0,0,0,.35);
   }
   /* Collapsible wrapper — grid-rows trick animates smoothly without knowing
      the image's height ahead of time. */
@@ -223,13 +223,17 @@
   }
   .live__richmenu-wrap.is-collapsed { grid-template-rows: 0fr; }
   .live__richmenu-inner { overflow: hidden; min-height: 0; }
+  /* Hamburger-style toggle, sitting to the left of the message input like a
+     chat app's menu button, instead of a thin chevron bar over the popup. */
   .live__richmenu-toggle {
-    display: block; width: 100%; background: var(--surface-2); border: none; border-top: 1px solid var(--border);
-    color: var(--faint); cursor: pointer; padding: 3px 0; font-size: 12px; line-height: 1;
+    flex-shrink: 0; width: 42px; height: 42px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border); color: var(--ink);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
   }
-  .live__richmenu-toggle:hover { color: var(--ink); }
-  .live__richmenu-toggle span { display: inline-block; transition: transform .25s ease; }
-  .live__richmenu-toggle.is-collapsed span { transform: rotate(180deg); }
+  .live__richmenu-toggle:hover { background: var(--surface-2); }
+  .live__richmenu-toggle:not(.is-collapsed) { background: var(--line-green-soft); border-color: var(--line-green); }
+  .live__richmenu-toggle .hamburger { display: flex; flex-direction: column; gap: 3px; width: 16px; }
+  .live__richmenu-toggle .hamburger i { display: block; height: 2px; border-radius: 1px; background: currentColor; }
   .live__richmenu { position: relative; line-height: 0; }
   .live__richmenu img { width: 100%; display: block; }
   .live__richmenu button {
@@ -591,10 +595,10 @@
               </div>
             </div>
           </div>
-          <button class="live__richmenu-toggle" id="richmenuToggle" aria-label="แสดง/ซ่อน Rich Menu">
-            <span id="richmenuChevron">▾</span>
-          </button>
         </div>
+        <button class="live__richmenu-toggle" id="richmenuToggle" aria-label="แสดง/ซ่อน Rich Menu" aria-expanded="true">
+          <span class="hamburger"><i></i><i></i><i></i></span>
+        </button>
         <input class="live__input" id="chatInput" placeholder="พิมพ์ข้อความ…" autocomplete="off" />
         <button class="live__send" id="sendBtn">➤</button>
       </div>
