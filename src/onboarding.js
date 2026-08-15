@@ -217,16 +217,22 @@ export function getConversationSummary(userId) {
 
 /**
  * Attach an updated conversation-interest summary onto a student's profile
- * and persist it, so it survives this server restarting and shows up on
- * their dashboard/PDF. Fire-and-forget from server.js after a guidance
- * reply — never on the reply's critical path. Demo sessions are skipped
- * (see the `demo` flag on handleOnboarding), same as all other persistence.
+ * and (for real students) persist it, so it survives this server restarting
+ * and shows up on their dashboard/PDF. Fire-and-forget from server.js after
+ * a guidance reply — never on the reply's critical path.
+ *
+ * Demo sessions get the in-memory update too (so the demo site's own
+ * summary panel/PDF can show it live) but deliberately skip persistProfile
+ * — same isolation guarantee as everywhere else: a hackathon visitor's demo
+ * conversation must never write into the real cloud store or show up in an
+ * actual teacher's room dashboard.
  */
 export function updateConversationSummary(userId, summary) {
   const p = profiles.get(userId);
-  if (!p || p.stage !== 'done' || p.anonymous || p.demo || !summary) return;
+  if (!p || p.stage !== 'done' || p.anonymous || !summary) return;
   p.conversationSummary = summary;
   p.conversationSummaryAt = Date.now();
+  if (p.demo) return;
   persistProfile(userId, p).catch((err) =>
     console.error('[onboarding] persist conversation summary failed:', err),
   );

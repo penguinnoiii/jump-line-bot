@@ -250,10 +250,32 @@ app.post('/demo/api/chat', demoJson, async (req, res) => {
         sources.map((s, i) => `${i + 1}. ${s.title}\n${s.url}`).join('\n')
       : '';
     res.json({ reply: reply + sourceBlock, quickReplies: [] });
+
+    // Fire-and-forget, same as the real LINE flow — updateConversationSummary
+    // keeps this in-memory only for demo sessions (see its own doc comment),
+    // never touching the real cloud store.
+    const profileForSummary = getProfile(sessionId);
+    if (profileForSummary) {
+      summarizeConversation(sessionId, profileForSummary.conversationSummary)
+        .then((summary) => updateConversationSummary(sessionId, summary))
+        .catch((err) => console.error('[demo] conversation summary error:', err));
+    }
   } catch (err) {
     console.error('demo chat error:', err);
     res.status(500).json({ error: 'internal_error' });
   }
+});
+
+// Lets the demo site show a live "dashboard preview" of the session's own
+// profile + rolling summary — reads the SAME in-memory profile the chat
+// endpoint above uses, so it reflects the conversation as it updates.
+app.get('/demo/api/profile', (req, res) => {
+  const sessionId = req.query?.sessionId;
+  if (!isDemoSession(sessionId)) return res.status(400).json({ error: 'invalid_session' });
+  const profile = getProfile(sessionId);
+  if (!profile) return res.status(404).json({ error: 'not_found' });
+  const { fullName, nickname, school, studentId, grade, interest, conversationSummary } = profile;
+  res.json({ profile: { fullName, nickname, school, studentId, grade, interest, conversationSummary } });
 });
 
 // LINE webhook. `middleware` reads the raw body and verifies the signature —

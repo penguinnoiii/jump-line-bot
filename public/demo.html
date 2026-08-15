@@ -253,6 +253,35 @@
   @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
   .live__hint { text-align: center; color: var(--faint); font-size: 12.5px; margin-top: 14px; }
 
+  /* ---- Dashboard preview (persistent memory) ---- */
+  .dash { padding: 20px 0 100px; }
+  .dash__card {
+    max-width: 560px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 26px;
+  }
+  .dash__row { display: flex; gap: 10px; margin-bottom: 20px; }
+  .dash__row .btn { flex: 1; padding: 11px 16px; font-size: 14px; }
+  .dash__empty { color: var(--muted); text-align: center; padding: 20px 0; margin: 0; }
+  .dash__fields { display: grid; grid-template-columns: 140px 1fr; gap: 10px 14px; font-size: 14px; margin: 0; }
+  .dash__fields dt { color: var(--muted); }
+  .dash__fields dd { margin: 0; color: var(--ink); }
+  .dash__summary-label { font-size: 12.5px; font-weight: 700; color: var(--line-green); margin: 20px 0 8px; }
+  .dash__summary {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; font-size: 14px; line-height: 1.6; color: var(--ink);
+  }
+
+  .print-only { display: none; }
+  @media print {
+    body * { visibility: hidden; }
+    #dash-print, #dash-print * { visibility: visible; }
+    #dash-print { display: block; position: absolute; top: 0; left: 0; width: 100%; padding: 24px; color: #16202e; }
+    #dash-print h2 { margin: 0 0 4px; }
+    #dash-print .school { color: #586576; margin: 0 0 20px; }
+    #dash-print p { margin: 0 0 10px; font-size: 14px; }
+    #dash-print .stamp { color: #8592a3; font-size: 12px; margin-top: 24px; }
+  }
+
   /* ---- Footer ---- */
   .footer { border-top: 1px solid var(--border); padding: 34px 0; text-align: center; color: var(--faint); font-size: 13px; }
 
@@ -533,6 +562,42 @@
   </div>
 </section>
 
+<section class="dash" id="dash">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Persistent memory</div>
+      <h2>Jump จำบทสนทนาได้ — ไม่ต้องเริ่มใหม่ทุกครั้ง</h2>
+      <p>
+        หลังคุยกับ Jump ในแชทด้านบน ระบบจะสรุปสิ่งที่คุยกันไว้อัตโนมัติ แล้วใช้สรุปนี้ต่อในครั้งถัดไป
+        — เหมือนหน้าแดชบอร์ดของนักเรียนจริง ๆ กดรีเฟรชด้านล่างเพื่อดูผลจากบทสนทนาที่เพิ่งคุยไป
+      </p>
+    </div>
+
+    <div class="dash__card">
+      <div class="dash__row">
+        <button class="btn btn--ghost" id="dashRefresh">🔄 รีเฟรชข้อมูล</button>
+        <button class="btn btn--primary" id="dashPdf">🖨️ แชร์เป็น PDF</button>
+      </div>
+      <div id="dashBody">
+        <p class="dash__empty" id="dashEmpty">ยังไม่มีข้อมูล — คุยกับ Jump ในแชทด้านบนแล้วเข้าสู่ระบบก่อนนะคะ</p>
+        <div id="dashFields" style="display:none">
+          <dl class="dash__fields">
+            <dt>ชื่อ-นามสกุล</dt><dd id="dashFullName"></dd>
+            <dt>รหัสนักเรียน</dt><dd id="dashStudentId"></dd>
+            <dt>ชั้น/ห้อง</dt><dd id="dashGrade"></dd>
+            <dt>ความสนใจ/เป้าหมาย</dt><dd id="dashInterest"></dd>
+          </dl>
+          <div class="dash__summary-label">📝 สรุปจากการคุยกับ Jump</div>
+          <div class="dash__summary" id="dashSummary"></div>
+        </div>
+      </div>
+    </div>
+    <p class="live__hint">โหมดสาธิต — สรุปนี้เก็บไว้ในหน่วยความจำของเซสชันนี้เท่านั้น ไม่ถูกบันทึกลงระบบจริงเหมือนของนักเรียนจริง</p>
+  </div>
+</section>
+
+<div id="dash-print"></div>
+
 <footer class="footer">
   <div class="wrap">สร้างขึ้นเพื่อ Jump Thailand Hackathon Demo · Jump เป็นเครื่องมือช่วยตัดสินใจ ไม่ใช่ผู้ตัดสินอนาคตแทนนักเรียน</div>
 </footer>
@@ -732,6 +797,9 @@
       } finally {
         sending = false;
         sendBtn.disabled = false;
+        // The summary updates async server-side (fire-and-forget) after the
+        // reply — give it a moment, then refresh the dashboard preview below.
+        if (window.__refreshDashPreview) setTimeout(window.__refreshDashPreview, 2500);
       }
     }
 
@@ -773,10 +841,59 @@
     sendMessage('__init__');
   }
 
+  /* ---- Live dashboard preview: same session's profile + rolling summary,
+     read from GET /demo/api/profile (in-memory only, demo isolation kept). */
+  function setupDashPreview() {
+    const empty = document.getElementById('dashEmpty');
+    const fields = document.getElementById('dashFields');
+    const refreshBtn = document.getElementById('dashRefresh');
+    const pdfBtn = document.getElementById('dashPdf');
+
+    async function refresh() {
+      const sessionId = localStorage.getItem('jump_demo_session');
+      if (!sessionId) return;
+      try {
+        const res = await fetch('/demo/api/profile?sessionId=' + encodeURIComponent(sessionId));
+        if (!res.ok) return; // not onboarded yet — keep showing the empty state
+        const { profile } = await res.json();
+        document.getElementById('dashFullName').textContent = profile.fullName || 'ไม่ระบุ';
+        document.getElementById('dashStudentId').textContent = profile.studentId || 'ไม่ระบุ';
+        document.getElementById('dashGrade').textContent = profile.grade || 'ไม่ระบุ';
+        document.getElementById('dashInterest').textContent = profile.interest || 'ไม่ระบุ';
+        document.getElementById('dashSummary').textContent =
+          profile.conversationSummary || 'ยังไม่มีบทสนทนาที่สรุปได้ — ลองถาม Jump ในแชทด้านบนดูก่อนนะคะ';
+        empty.style.display = 'none';
+        fields.style.display = 'block';
+      } catch (e) {
+        // Quiet failure — keep whatever was last shown.
+      }
+    }
+
+    refreshBtn.addEventListener('click', refresh);
+    pdfBtn.addEventListener('click', () => {
+      const stamp = new Date().toLocaleDateString('th-TH', { dateStyle: 'long' });
+      document.getElementById('dash-print').innerHTML = `
+        <h2>ข้อมูลนักเรียน</h2>
+        <p class="school">โรงเรียนสาธิต (โหมดสาธิต)</p>
+        <p><b>ชื่อ-นามสกุล:</b> ${document.getElementById('dashFullName').textContent}</p>
+        <p><b>รหัสนักเรียน:</b> ${document.getElementById('dashStudentId').textContent}</p>
+        <p><b>ชั้น/ห้อง:</b> ${document.getElementById('dashGrade').textContent}</p>
+        <p><b>ความสนใจ/เป้าหมาย:</b> ${document.getElementById('dashInterest').textContent}</p>
+        <p><b>สรุปจากการคุยกับ Jump:</b> ${document.getElementById('dashSummary').textContent}</p>
+        <p class="stamp">พิมพ์จาก Jump Demo เมื่อ ${stamp}</p>
+      `;
+      window.print();
+    });
+
+    window.__refreshDashPreview = refresh;
+    refresh();
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     setupSteps();
     setupReveals();
     setupLiveChat();
+    setupDashPreview();
 
     // The rich-menu preview image loads async and changes that card's
     // height — recalculate ScrollTrigger positions once it's in, per GSAP's
