@@ -11,7 +11,12 @@ import { profileSummaryForLLM } from './onboarding.js';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+// 'gemini-2.5-flash' (the previous default) was retired for new API keys.
+// 'gemini-flash-latest' is current but was hitting repeated 503 "high
+// demand" errors when tested — 'gemini-flash-lite-latest' verified reliable
+// (multiple consecutive successful calls). Still an auto-updating alias, so
+// it won't hit the same dated-version deprecation problem later.
+const MODEL = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
 
 // Gemini's Content role must be exactly 'user' or 'model' (no 'system' or
 // 'assistant') — history is stored in that shape directly so no per-call
@@ -81,12 +86,11 @@ export async function generateGuidance(userId, userText, profile = null) {
       systemInstruction: systemContent,
       temperature: 0.4,
       maxOutputTokens: 700, // shorter, chat-style replies (see prompts.js)
-      // Gemini 2.5's "thinking" is on by default and spends maxOutputTokens
-      // on invisible reasoning tokens before the visible reply — testing
-      // showed this can silently eat the whole budget and return an EMPTY
-      // reply for short, non-technical chat questions that don't need deep
-      // reasoning. Disabled for fast, reliable, short chat-style replies.
-      thinkingConfig: { thinkingBudget: 0 },
+      // NOTE: thinkingConfig (used to disable Gemini 2.5's default
+      // "thinking" tokens) was removed — it made the *-lite models reject
+      // the request outright with a 400 "invalid argument". Re-add it,
+      // scoped to models that actually support it, if a future default
+      // model needs the same fix.
     },
   });
 
