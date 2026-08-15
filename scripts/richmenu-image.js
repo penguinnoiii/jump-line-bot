@@ -1,152 +1,75 @@
 // Generates the LINE rich-menu image (2500x843, N tappable panels) as a PNG
-// buffer. Uses @napi-rs/canvas with a registered Thai font so labels render.
-//
-// Design: a single unified dark surface (not four clashing solid-color
-// blocks) with each panel differentiated by a floating gradient "icon chip"
-// — the same visual language as a modern app's bottom nav / home screen
-// rather than 2015-era flat-color rectangles.
+// buffer, by compositing pre-made panel illustrations (scripts/assets/richmenu/)
+// side by side — each source image already carries its own title/subtitle/
+// caption text, so this file just contain-fits each one into its panel slot.
 
-import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
-// Register Thai-capable fonts under explicit family names. Leelawadee UI
-// reads as noticeably more modern than Tahoma for Thai text (it's what
-// public/dashboard.html and public/teacher.html already use), so the rich
-// menu now matches the rest of the app's typography.
-GlobalFonts.registerFromPath('C:/Windows/Fonts/LeelawUI.ttf', 'LeelawR');
-GlobalFonts.registerFromPath('C:/Windows/Fonts/LeelaUIb.ttf', 'LeelawB');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ASSETS_DIR = path.join(__dirname, 'assets', 'richmenu');
 
 const W = 2500;
 const H = 843;
 
-// Each panel's chip is a two-stop gradient (not a flat fill) — brighter,
-// more contemporary than a single flat hue per panel.
+// One entry per panel, left to right — file order must match ACTIONS in
+// setup-richmenu.js.
 const PANELS = [
-  { title: 'ค้นหาโรงเรียน', sub: 'เปรียบเทียบสายการเรียน', icon: 'search', from: '#6d8bff', to: '#3d5af1' },
-  { title: 'แนะแนว', sub: 'ด้วย AI (Gemini)', icon: 'cap', from: '#ffb454', to: '#f2861f' },
-  { title: 'แดชบอร์ด', sub: 'ครู/นักเรียน', icon: 'grid', from: '#c68bff', to: '#9c4dff' },
+  { file: 'school.png' }, // ค้นหา/แนะนำโรงเรียน
+  { file: 'course.png' }, // แนะแนวสายการเรียน
+  { file: 'dashboard.png' }, // แดชบอร์ด
 ];
 
-// Filled (not stroked) icons read cleaner at small size and match a modern
-// icon-chip aesthetic better than outline icons.
-function drawIcon(ctx, kind, cx, cy, r) {
-  ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = r * 0.16;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  if (kind === 'search') {
-    ctx.beginPath();
-    ctx.arc(cx - r * 0.12, cy - r * 0.12, r * 0.62, 0, Math.PI * 2);
-    ctx.lineWidth = r * 0.2;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx + r * 0.32, cy + r * 0.32);
-    ctx.lineTo(cx + r * 0.78, cy + r * 0.78);
-    ctx.lineWidth = r * 0.24;
-    ctx.stroke();
-  } else if (kind === 'cap') {
-    // Mortarboard: filled diamond top + a hanging tassel.
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - r * 0.62);
-    ctx.lineTo(cx + r * 0.95, cy - r * 0.05);
-    ctx.lineTo(cx, cy + r * 0.52);
-    ctx.lineTo(cx - r * 0.95, cy - r * 0.05);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(cx + r * 0.5, cy + r * 0.12);
-    ctx.lineTo(cx + r * 0.5, cy + r * 0.72);
-    ctx.lineWidth = r * 0.12;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(cx + r * 0.5, cy + r * 0.78, r * 0.09, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (kind === 'grid') {
-    // 2x2 rounded dashboard tiles.
-    const s = r * 0.68;
-    const gap = r * 0.24;
-    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([dx, dy]) => {
-      const tx = cx + dx * (s / 2 + gap / 2) - s / 2;
-      const ty = cy + dy * (s / 2 + gap / 2) - s / 2;
-      ctx.beginPath();
-      ctx.roundRect(tx, ty, s, s, s * 0.28);
-      ctx.fill();
-    });
-  }
+/** Draw `img` into the rect (x, y, w, h), scaled to fit entirely inside it
+ * (CSS `object-fit: contain` behavior) so the title/caption text baked into
+ * each source image never gets cropped — these panels are noticeably
+ * taller-than-wide relative to the menu's panel slots, so a `cover` crop
+ * would shave text off the top and bottom. */
+function drawContain(ctx, img, x, y, w, h) {
+  const scale = Math.min(w / img.width, h / img.height);
+  const drawW = img.width * scale;
+  const drawH = img.height * scale;
+  const dx = x + (w - drawW) / 2;
+  const dy = y + (h - drawH) / 2;
+  ctx.drawImage(img, dx, dy, drawW, drawH);
 }
 
-export function buildRichMenuPng() {
+/** Sample a pixel just inside the image's corner so the letterboxing left
+ * behind by drawContain reads as an extension of the card, not a hard seam. */
+function cornerColor(img) {
+  const c = createCanvas(img.width, img.height);
+  const cx = c.getContext('2d');
+  cx.drawImage(img, 0, 0);
+  const { data } = cx.getImageData(10, 10, 1, 1);
+  return `rgb(${data[0]}, ${data[1]}, ${data[2]})`;
+}
+
+export async function buildRichMenuPng() {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d');
   const n = PANELS.length;
   const pw = W / n;
 
-  // Unified dark surface with a very subtle diagonal gradient for depth,
-  // instead of four unrelated solid colors — this is what makes it read as
-  // one cohesive product rather than a row of clashing buttons.
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, '#12162c');
-  bg.addColorStop(1, '#1a2040');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
+  const images = await Promise.all(
+    PANELS.map((p) => loadImage(path.join(ASSETS_DIR, p.file))),
+  );
 
-  const chipR = n > 3 ? 130 : 150; // chip radius (rounded-square half-size)
-  const titleSize = n > 3 ? 72 : 96;
-  const subSize = n > 3 ? 38 : 48;
-
-  PANELS.forEach((p, i) => {
-    const cx = i * pw + pw / 2;
-    const chipCy = H * 0.36;
-
-    // Soft drop shadow under the chip.
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.45)';
-    ctx.shadowBlur = 36;
-    ctx.shadowOffsetY = 18;
-    const grad = ctx.createLinearGradient(cx, chipCy - chipR, cx, chipCy + chipR);
-    grad.addColorStop(0, p.from);
-    grad.addColorStop(1, p.to);
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.roundRect(cx - chipR, chipCy - chipR, chipR * 2, chipR * 2, chipR * 0.42);
-    ctx.fill();
-    ctx.restore();
-
-    // Icon inside the chip.
-    drawIcon(ctx, p.icon, cx, chipCy, chipR * 0.52);
-
-    // Title.
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#f4f6ff';
-    ctx.font = `${titleSize}px LeelawB`;
-    ctx.fillText(p.title, cx, H * 0.72);
-
-    // Subtitle, muted.
-    ctx.fillStyle = 'rgba(226,230,255,0.62)';
-    ctx.font = `${subSize}px LeelawR`;
-    ctx.fillText(p.sub, cx, H * 0.83);
-
-    // Small accent pill under the subtitle, tying the label back to the chip color.
-    const pillW = chipR * 0.9;
-    const pillY = H * 0.9;
-    const pillGrad = ctx.createLinearGradient(cx - pillW / 2, 0, cx + pillW / 2, 0);
-    pillGrad.addColorStop(0, p.from);
-    pillGrad.addColorStop(1, p.to);
-    ctx.fillStyle = pillGrad;
-    ctx.beginPath();
-    ctx.roundRect(cx - pillW / 2, pillY - 6, pillW, 12, 6);
-    ctx.fill();
+  images.forEach((img, i) => {
+    const x = i * pw;
+    ctx.fillStyle = cornerColor(img);
+    ctx.fillRect(x, 0, pw, H);
+    drawContain(ctx, img, x, 0, pw, H);
   });
 
-  // Thin inset dividers between panels — subtler than a full-height hard line.
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  // Thin dividers between panels so the tap zones stay legible even where
+  // two source images land on similar background colors.
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
   ctx.lineWidth = 3;
   for (let i = 1; i < n; i++) {
     ctx.beginPath();
-    ctx.moveTo(i * pw, 70);
-    ctx.lineTo(i * pw, H - 70);
+    ctx.moveTo(i * pw, 0);
+    ctx.lineTo(i * pw, H);
     ctx.stroke();
   }
 
