@@ -207,7 +207,22 @@
     font-size: 17px; cursor: pointer; flex-shrink: 0;
   }
   .live__send:disabled { opacity: .5; cursor: default; }
-  .live__richmenu { position: relative; line-height: 0; border-top: 1px solid var(--border); }
+  /* Collapsible wrapper — grid-rows trick animates smoothly without knowing
+     the image's height ahead of time. Sits ABOVE the input row, like the
+     real LINE app: rich menu pops up over the keyboard area, not below it. */
+  .live__richmenu-wrap {
+    display: grid; grid-template-rows: 1fr; transition: grid-template-rows .28s ease;
+  }
+  .live__richmenu-wrap.is-collapsed { grid-template-rows: 0fr; }
+  .live__richmenu-inner { overflow: hidden; min-height: 0; }
+  .live__richmenu-toggle {
+    display: block; width: 100%; background: var(--surface-2); border: none; border-top: 1px solid var(--border);
+    color: var(--faint); cursor: pointer; padding: 3px 0; font-size: 12px; line-height: 1;
+  }
+  .live__richmenu-toggle:hover { color: var(--ink); }
+  .live__richmenu-toggle span { display: inline-block; transition: transform .25s ease; }
+  .live__richmenu-toggle.is-collapsed span { transform: rotate(180deg); }
+  .live__richmenu { position: relative; line-height: 0; }
   .live__richmenu img { width: 100%; display: block; }
   .live__richmenu button {
     position: absolute; border: none; background: rgba(255,255,255,0); cursor: pointer; padding: 0;
@@ -486,19 +501,26 @@
       </div>
       <div class="live__body" id="chatBody"></div>
       <div class="live__quick" id="quickReplies"></div>
+      <div class="live__richmenu-wrap" id="richmenuWrap">
+        <div class="live__richmenu-inner">
+          <div class="live__richmenu">
+            <img src="/assets/richmenu-preview.jpg" alt="Rich Menu ของ Jump" />
+            <button class="rm-dashboard" id="rmDashboard" aria-label="แดชบอร์ด"></button>
+            <button class="rm-school" id="rmSchool" aria-label="ค้นหาโรงเรียน"></button>
+            <button class="rm-course" id="rmCourse" aria-label="แนะแนวสายการเรียน"></button>
+          </div>
+        </div>
+      </div>
+      <button class="live__richmenu-toggle" id="richmenuToggle" aria-label="แสดง/ซ่อน Rich Menu">
+        <span id="richmenuChevron">▾</span>
+      </button>
       <div class="live__inputrow">
         <input class="live__input" id="chatInput" placeholder="พิมพ์ข้อความ…" autocomplete="off" />
         <button class="live__send" id="sendBtn">➤</button>
       </div>
-      <div class="live__richmenu">
-        <img src="/assets/richmenu-preview.jpg" alt="Rich Menu ของ Jump" />
-        <button class="rm-dashboard" id="rmDashboard" aria-label="แดชบอร์ด"></button>
-        <button class="rm-school" id="rmSchool" aria-label="ค้นหาโรงเรียน"></button>
-        <button class="rm-course" id="rmCourse" aria-label="แนะแนวสายการเรียน"></button>
-      </div>
     </div>
     <p class="live__hint">โหมดสาธิต — AIS OTP จะแสดงรหัสให้ในแชทเลย ไม่ส่ง SMS จริง และข้อมูลที่กรอกจะไม่ถูกบันทึกลงระบบจริง
-      กด Rich Menu ด้านล่างแชทได้เลย — เหมือนของจริงทุกปุ่ม</p>
+      กดลูกศรเหนือช่องพิมพ์เพื่อแสดง/ซ่อน Rich Menu ได้เหมือนของจริง</p>
   </div>
 </section>
 
@@ -719,6 +741,15 @@
     });
     document.getElementById('rmDashboard').addEventListener('click', () => {
       window.open('/dashboard', '_blank');
+    });
+
+    // Toggle chevron — show/hide the rich menu, same as the real LINE app.
+    const richmenuWrap = document.getElementById('richmenuWrap');
+    const richmenuToggle = document.getElementById('richmenuToggle');
+    richmenuToggle.addEventListener('click', () => {
+      const collapsed = richmenuWrap.classList.toggle('is-collapsed');
+      richmenuToggle.classList.toggle('is-collapsed', collapsed);
+      richmenuToggle.setAttribute('aria-expanded', String(!collapsed));
     });
 
     resetBtn.addEventListener('click', () => {
