@@ -124,6 +124,46 @@
   .bubble--user { align-self: flex-end; background: var(--line-green); color: #fff; border-bottom-right-radius: 4px; }
   .bubble--chip { align-self: flex-start; background: #fff; color: var(--line-green); border: 1px solid var(--line-green); font-weight: 700; border-radius: 999px; padding: 7px 14px; }
 
+  /* ---- Rich menu / rich message showcase ---- */
+  .showcase { padding: 20px 0 100px; }
+  .showcase__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 28px; align-items: start; }
+  .showcase__card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 26px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .showcase__label { font-size: 12.5px; font-weight: 700; color: var(--line-green); background: var(--line-green-soft); padding: 4px 10px; border-radius: 999px; align-self: flex-start; }
+  .showcase__card h3 { margin: 0; font-size: 19px; }
+  .showcase__card p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  .mini-phone {
+    width: 100%; max-width: 300px; margin: 0 auto; background: #000; border-radius: 34px; padding: 10px;
+    box-shadow: var(--shadow); border: 1px solid #2a2d38;
+  }
+  .mini-phone__screen { background: #0d1117; border-radius: 26px; overflow: hidden; display: flex; flex-direction: column; }
+  .mini-phone__bar { background: var(--line-green); color: #fff; font-weight: 700; font-size: 12.5px; padding: 12px 14px; display: flex; align-items: center; gap: 8px; }
+  .mini-phone__bar .dot { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.22); display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .mini-phone__chat { padding: 12px; display: flex; flex-direction: column; gap: 8px; background: #eef1f4; }
+  .mini-phone__chat .bubble { opacity: 1; transform: none; max-width: 88%; }
+
+  .richmenu-strip { width: 100%; display: block; border-top: 1px solid rgba(0,0,0,.08); }
+  .richmenu-strip img { width: 100%; display: block; }
+
+  .rich-msg-card {
+    align-self: flex-start; width: 100%; max-width: 88%; background: #fff; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 1px 1px rgba(0,0,0,.06);
+  }
+  .rich-msg-card__art {
+    height: 92px; background: linear-gradient(135deg, #5b7cff, #06c755);
+    display: flex; align-items: center; justify-content: center; font-size: 34px;
+  }
+  .rich-msg-card__body { padding: 10px 12px 12px; }
+  .rich-msg-card__body h4 { margin: 0 0 4px; font-size: 13.5px; color: #16202e; }
+  .rich-msg-card__body p { margin: 0 0 10px; font-size: 12px; color: #586576; }
+  .rich-msg-card__cta {
+    display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700;
+    color: var(--line-green); border-top: 1px solid #eef1f4; padding-top: 8px;
+  }
+
   /* ---- Live demo section ---- */
   .live { padding: 20px 0 120px; }
   .live__panel {
@@ -354,6 +394,66 @@
   </div>
 </section>
 
+<section class="showcase" id="showcase">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Native LINE features</div>
+      <h2>ไม่ใช่แค่แชทข้อความ — ใช้ฟีเจอร์ของ LINE เต็มรูปแบบ</h2>
+      <p>Jump ใช้ Rich Menu และ Rich Message ของ LINE OA จริง ไม่ใช่แค่ข้อความตัวอักษรธรรมดา</p>
+    </div>
+
+    <div class="showcase__grid">
+
+      <div class="showcase__card">
+        <span class="showcase__label">Rich Menu</span>
+        <h3>เมนูลัดที่ติดอยู่ในแชทตลอดเวลา</h3>
+        <p>
+          นักเรียนกดเข้าถึงฟีเจอร์หลักได้ทันทีโดยไม่ต้องพิมพ์ — ค้นหา/แนะนำโรงเรียน แนะแนวสายการเรียน
+          และแดชบอร์ด ผ่านปุ่มลัดด้านล่างแชท ออกแบบเป็น 2 คอลัมน์ให้แดชบอร์ด (ข้อมูลของนักเรียน) เด่นที่สุด
+        </p>
+        <div class="mini-phone">
+          <div class="mini-phone__screen">
+            <div class="mini-phone__bar"><span class="dot">🎓</span> Jump</div>
+            <div class="mini-phone__chat">
+              <div class="bubble bubble--bot">สวัสดีค่ะ 👋 นี่คือ "Jump" ผู้ช่วยแนะแนวการศึกษาประจำโรงเรียนสาธิตค่ะ</div>
+              <div class="bubble bubble--user">อยากดูข้อมูลของตัวเอง</div>
+            </div>
+            <div class="richmenu-strip">
+              <img src="/assets/richmenu-preview.jpg" alt="Rich Menu ของ Jump — ค้นหาโรงเรียน, แนะแนว, แดชบอร์ด" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="showcase__card">
+        <span class="showcase__label">Rich Message</span>
+        <h3>การ์ดข้อมูลสำคัญที่แตะดูรายละเอียดได้ทันที</h3>
+        <p>
+          เวลามีทุนการศึกษาใหม่ กำหนดการสอบ หรือเรื่องสำคัญ Jump ส่งเป็นการ์ดรูปภาพที่กดแล้วดูรายละเอียดต่อได้เลย
+          ไม่ต้องให้นักเรียนเลื่อนหาในข้อความยาว ๆ
+        </p>
+        <div class="mini-phone">
+          <div class="mini-phone__screen">
+            <div class="mini-phone__bar"><span class="dot">🎓</span> Jump</div>
+            <div class="mini-phone__chat">
+              <div class="bubble bubble--bot">มีเรื่องนี้มาแจ้งด่วนค่ะ 📢</div>
+              <div class="rich-msg-card">
+                <div class="rich-msg-card__art">🎓✨</div>
+                <div class="rich-msg-card__body">
+                  <h4>ทุนการศึกษาสายวิทย์-คณิต เปิดรับสมัครแล้ว</h4>
+                  <p>ทุนเรียนฟรี 100% สำหรับนักเรียน ม.3 ที่สนใจสายวิทย์-คณิต ปิดรับสมัคร 30 ก.ย. นี้</p>
+                  <div class="rich-msg-card__cta"><span>ดูรายละเอียดทุน</span><span>→</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <section class="live" id="try">
   <div class="wrap">
     <div class="section-head">
@@ -449,10 +549,16 @@
           scrollTrigger: { trigger: step, start: 'top 85%' },
         });
       });
+      gsap.utils.toArray('.showcase__card').forEach((card, i) => {
+        gsap.from(card, {
+          opacity: 0, y: 24, duration: 0.5, delay: i * 0.08, ease: 'power2.out',
+          scrollTrigger: { trigger: card, start: 'top 85%' },
+        });
+      });
     });
 
     mm.add('(prefers-reduced-motion: reduce)', () => {
-      gsap.set('.context__card, .step', { opacity: 1, y: 0 });
+      gsap.set('.context__card, .step, .showcase__card', { opacity: 1, y: 0 });
     });
   }
 
@@ -574,6 +680,17 @@
     setupSteps();
     setupReveals();
     setupLiveChat();
+
+    // The rich-menu preview image loads async and changes that card's
+    // height — recalculate ScrollTrigger positions once it's in, per GSAP's
+    // own guidance (stale positions after layout-affecting content loads is
+    // a documented gotcha, not something viewport resize alone covers).
+    if (window.ScrollTrigger) {
+      document.querySelectorAll('.richmenu-strip img').forEach((img) => {
+        if (img.complete) return;
+        img.addEventListener('load', () => ScrollTrigger.refresh(), { once: true });
+      });
+    }
   });
 })();
 </script>

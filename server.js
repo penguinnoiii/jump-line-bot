@@ -59,6 +59,10 @@ const app = express();
 // Health check (also lets you confirm the deploy is live in a browser).
 app.get('/', (_req, res) => res.send('Jump Thailand LINE bot is running ✅'));
 
+// Static images referenced by public pages (e.g. the rich-menu preview on
+// the demo site) — everything in here is public, non-sensitive artwork.
+app.use('/assets', express.static('public/assets'));
+
 // --- Teacher dashboard ("Teacher View") -------------------------------------
 // Static page + a small password-gated JSON API. express.json() is scoped to
 // these routes only — it must never run in front of /webhook, which needs
