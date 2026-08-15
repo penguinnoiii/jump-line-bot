@@ -188,6 +188,12 @@
     flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px;
     background: #eef1f4;
   }
+  /* Without this, any bubble/card with overflow:hidden (all the message
+     cards below) gets crushed toward zero height once the chat log grows
+     taller than this flex column's available space — overflow:hidden zeroes
+     out a flex item's automatic minimum size, so the shrink algorithm dumps
+     all the squeezing onto exactly those items instead of just scrolling. */
+  .live__body > * { flex-shrink: 0; }
   .live__body .bubble { opacity: 1; transform: none; }
   .live__quick { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 16px 4px; background: #eef1f4; }
   .qbtn {
