@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Jump Thailand — Demo</title>
+<style>
+  :root {
+    --bg: #0a0b0f; --surface: #14161d; --surface-2: #1b1e27; --border: #262a36;
+    --ink: #f2f3f7; --muted: #9aa0b4; --faint: #656b80;
+    --primary: #5b7cff; --primary-soft: rgba(91,124,255,.14);
+    --line-green: #06c755; --line-green-soft: rgba(6,199,85,.16);
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 20px 60px -20px rgba(0,0,0,.6);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Leelawadee UI", Tahoma, sans-serif;
+    line-height: 1.65; -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--primary); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- Top nav ---- */
+  .nav {
+    position: sticky; top: 0; z-index: 40; backdrop-filter: blur(10px);
+    background: rgba(10,11,15,.72); border-bottom: 1px solid var(--border);
+  }
+  .nav__row { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; max-width: 1120px; margin: 0 auto; }
+  .nav__brand { font-weight: 800; font-size: 17px; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
+  .nav__cta {
+    background: var(--line-green); color: #06210f; font-weight: 700; font-size: 13.5px;
+    padding: 9px 16px; border-radius: 999px; text-decoration: none;
+  }
+
+  /* ---- Hero ---- */
+  .hero { padding: 110px 0 90px; text-align: center; position: relative; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: -20% -10% auto -10%; height: 620px;
+    background: radial-gradient(closest-side, rgba(91,124,255,.28), transparent 70%),
+                radial-gradient(closest-side, rgba(6,199,85,.16), transparent 65%) 70% 20%;
+    filter: blur(10px); pointer-events: none;
+  }
+  .hero__eyebrow {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;
+    color: var(--line-green); background: var(--line-green-soft); padding: 6px 14px;
+    border-radius: 999px; margin-bottom: 22px;
+  }
+  .hero h1 { font-size: clamp(34px, 5vw, 58px); margin: 0 0 18px; letter-spacing: -.02em; position: relative; }
+  .hero h1 span { color: var(--primary); }
+  .hero p { font-size: 18px; color: var(--muted); max-width: 620px; margin: 0 auto 34px; position: relative; }
+  .hero__actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; position: relative; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px;
+    padding: 13px 24px; border-radius: 12px; text-decoration: none; border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .btn--primary { background: var(--line-green); color: #06210f; }
+  .btn--primary:hover { filter: brightness(1.07); }
+  .btn--ghost { background: var(--surface); color: var(--ink); border-color: var(--border); }
+  .btn--ghost:hover { border-color: var(--primary); }
+
+  /* ---- Context / problem strip ---- */
+  .context { padding: 10px 0 90px; }
+  .context__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+  .context__card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px;
+  }
+  .context__card .num { font-size: 13px; font-weight: 800; color: var(--primary); margin-bottom: 8px; }
+  .context__card h3 { margin: 0 0 8px; font-size: 16px; }
+  .context__card p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  /* ---- Section heading ---- */
+  .section-head { text-align: center; padding: 0 0 56px; }
+  .section-head .kicker { color: var(--line-green); font-weight: 700; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
+  .section-head h2 { font-size: clamp(26px, 3.4vw, 38px); margin: 10px 0 12px; letter-spacing: -.01em; }
+  .section-head p { color: var(--muted); max-width: 560px; margin: 0 auto; }
+
+  /* ---- Steps (sticky phone rail) ---- */
+  .steps { padding: 20px 0 100px; }
+  .steps__layout { display: grid; grid-template-columns: 1fr 380px; gap: 64px; align-items: start; }
+  .steps__col { display: flex; flex-direction: column; gap: 26vh; padding-top: 6vh; padding-bottom: 6vh; }
+  .step {
+    opacity: .35; transition: opacity .3s ease;
+  }
+  .step.is-active { opacity: 1; }
+  .step__num {
+    width: 34px; height: 34px; border-radius: 10px; background: var(--primary-soft); color: var(--primary);
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; margin-bottom: 16px;
+  }
+  .step h3 { font-size: 24px; margin: 0 0 10px; letter-spacing: -.01em; }
+  .step p { color: var(--muted); font-size: 15.5px; max-width: 460px; }
+  .step__tag {
+    display: inline-block; margin-top: 12px; font-size: 12.5px; font-weight: 700; color: var(--line-green);
+    background: var(--line-green-soft); padding: 4px 10px; border-radius: 999px;
+  }
+
+  .phone-rail { position: sticky; top: 14vh; height: fit-content; }
+  .phone {
+    width: 340px; height: 620px; background: #000; border-radius: 42px; padding: 12px;
+    box-shadow: var(--shadow); border: 1px solid #2a2d38; margin: 0 auto;
+  }
+  .phone__screen {
+    position: relative; width: 100%; height: 100%; background: #0d1117; border-radius: 32px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .phone__notch {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    width: 90px; height: 22px; background: #000; border-radius: 12px; z-index: 5;
+  }
+  .phone__bar {
+    background: var(--line-green); color: #fff; font-weight: 700; font-size: 13.5px;
+    padding: 34px 16px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  }
+  .phone__bar .dot { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .phone__body { flex: 1; padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; background: #eef1f4; }
+  .phone__slide { display: none; flex-direction: column; gap: 8px; }
+  .phone__slide.is-visible { display: flex; }
+  .bubble {
+    max-width: 82%; padding: 9px 12px; border-radius: 14px; font-size: 13px; line-height: 1.45;
+    white-space: pre-line; opacity: 0; transform: translateY(10px);
+  }
+  .bubble--bot { align-self: flex-start; background: #fff; color: #16202e; border-bottom-left-radius: 4px; box-shadow: 0 1px 1px rgba(0,0,0,.06); }
+  .bubble--user { align-self: flex-end; background: var(--line-green); color: #fff; border-bottom-right-radius: 4px; }
+  .bubble--chip { align-self: flex-start; background: #fff; color: var(--line-green); border: 1px solid var(--line-green); font-weight: 700; border-radius: 999px; padding: 7px 14px; }
+
+  /* ---- Live demo section ---- */
+  .live { padding: 20px 0 120px; }
+  .live__panel {
+    max-width: 400px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 26px; overflow: hidden; box-shadow: var(--shadow);
+  }
+  .live__header {
+    background: var(--line-green); color: #fff; padding: 16px 18px; display: flex; align-items: center;
+    gap: 10px; justify-content: space-between;
+  }
+  .live__header .who { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .live__header .avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,.22);
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+  .live__reset {
+    background: rgba(255,255,255,.18); color: #fff; border: none; border-radius: 999px;
+    font-size: 12px; font-weight: 700; padding: 6px 12px; cursor: pointer;
+  }
+  .live__body {
+    height: 480px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+    background: #eef1f4;
+  }
+  .live__body .bubble { opacity: 1; transform: none; }
+  .live__quick { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 16px 4px; background: #eef1f4; }
+  .qbtn {
+    background: #fff; border: 1px solid var(--line-green); color: var(--line-green); font-weight: 700;
+    font-size: 12.5px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  }
+  .qbtn:hover { background: var(--line-green-soft); }
+  .live__inputrow {
+    display: flex; gap: 8px; padding: 12px; background: var(--surface-2); border-top: 1px solid var(--border);
+  }
+  .live__input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    padding: 11px 16px; color: var(--ink); font-size: 14px; font-family: inherit;
+  }
+  .live__input:focus { outline: none; border-color: var(--primary); }
+  .live__send {
+    background: var(--line-green); color: #06210f; border: none; border-radius: 999px; width: 42px; height: 42px;
+    font-size: 17px; cursor: pointer; flex-shrink: 0;
+  }
+  .live__send:disabled { opacity: .5; cursor: default; }
+  .typing { display: inline-flex; gap: 4px; padding: 10px 14px; background: #fff; border-radius: 14px; align-self: flex-start; }
+  .typing i { width: 6px; height: 6px; border-radius: 50%; background: #b7bcc7; animation: bounce 1.1s infinite ease-in-out; }
+  .typing i:nth-child(2) { animation-delay: .15s; }
+  .typing i:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
+  .live__hint { text-align: center; color: var(--faint); font-size: 12.5px; margin-top: 14px; }
+
+  /* ---- Footer ---- */
+  .footer { border-top: 1px solid var(--border); padding: 34px 0; text-align: center; color: var(--faint); font-size: 13px; }
+
+  @media (max-width: 880px) {
+    .steps__layout { grid-template-columns: 1fr; }
+    .phone-rail { position: static; display: flex; justify-content: center; margin-bottom: 20px; }
+    .steps__col { gap: 48px; padding-top: 0; }
+    .step { opacity: 1; }
+    .phone { width: 300px; height: 560px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav__row">
+    <div class="nav__brand">🎓 Jump Thailand</div>
+    <a class="nav__cta" href="#try">ลองเดโมเลย</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="hero__eyebrow">💬 Demo · ผ่าน LINE Official Account</span>
+    <h1>Education Data &amp; Guidance<br /><span>Platform ผ่าน LINE OA</span></h1>
+    <p>
+      Jump รวบรวมข้อมูลการศึกษาที่กระจัดกระจายจากหลายหน่วยงาน มาประกอบกับข้อมูลของนักเรียนแต่ละคน
+      แล้วให้ AI ช่วยเปลี่ยนข้อมูลนั้นให้เป็นคำแนะแนวที่ใช้ตัดสินใจได้จริง — ทั้งหมดผ่านแชท LINE ที่นักเรียนใช้อยู่แล้ว
+    </p>
+    <div class="hero__actions">
+      <a class="btn btn--primary" href="#try">🚀 ลองคุยกับ Jump จริง ๆ</a>
+      <a class="btn btn--ghost" href="#steps">ดูขั้นตอนการทำงาน ↓</a>
+    </div>
+  </div>
+</header>
+
+<section class="context">
+  <div class="wrap">
+    <div class="context__grid">
+      <div class="context__card">
+        <div class="num">01</div>
+        <h3>ม.3 คือจุดเปลี่ยนสำคัญ</h3>
+        <p>ช่วงเปลี่ยนผ่านที่นักเรียนจำนวนมากเสี่ยงหลุดจากระบบการศึกษา เพราะไม่รู้ว่าจะไปทางไหนต่อ</p>
+      </div>
+      <div class="context__card">
+        <div class="num">02</div>
+        <h3>ข้อมูลไม่พร้อมให้ตัดสินใจ</h3>
+        <p>ปัญหาไม่ใช่แค่ไม่มีทางเลือก แต่นักเรียนมีข้อมูลไม่เพียงพอที่จะตัดสินใจเลือกทางที่เหมาะกับตัวเอง</p>
+      </div>
+      <div class="context__card">
+        <div class="num">03</div>
+        <h3>ข้อมูลกระจัดกระจาย</h3>
+        <p>โรงเรียน หลักสูตร ค่าใช้จ่าย ทุนการศึกษา และ Admission กระจายอยู่คนละแหล่ง ค้นหาเปรียบเทียบยาก</p>
+      </div>
+      <div class="context__card">
+        <div class="num">04</div>
+        <h3>ครูแนะแนวมีภาระงานล้น</h3>
+        <p>ครูแนะแนวหนึ่งคนดูแลนักเรียนจำนวนมาก ไม่มีเวลาค้นและรวบรวมข้อมูลให้ทุกคนด้วยตัวเอง</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="steps" id="steps">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">How it works</div>
+      <h2>จากเพิ่มเพื่อนใน LINE สู่คำแนะแนวที่ใช้ได้จริง</h2>
+      <p>ขั้นตอนทั้งหมดที่นักเรียนเจอจริงในแชท Jump — เลื่อนลงเพื่อดูทีละขั้น</p>
+    </div>
+
+    <div class="steps__layout">
+      <div class="steps__col">
+
+        <article class="step" data-step="0">
+          <div class="step__num">1</div>
+          <h3>เพิ่มเพื่อน LINE OA</h3>
+          <p>
+            ครูแนะแนวแนะนำให้นักเรียนเพิ่มเพื่อน Jump ใน LINE ทันทีที่เพิ่มเพื่อน บอทจะทักทายและถามก่อนเลยว่า
+            กำลังคุยด้วยในฐานะ "นักเรียน" หรือ "คุณครู" — ไม่ต้องเดา ไม่ต้องมีเมนูแยก
+          </p>
+          <span class="step__tag">LINE Follow Event</span>
+        </article>
+
+        <article class="step" data-step="1">
+          <div class="step__num">2</div>
+          <h3>ยืนยันตัวตนผ่าน AIS</h3>
+          <p>
+            เลือก "นักเรียน" แล้วให้ความยินยอมใช้ข้อมูล จากนั้นยืนยันเบอร์โทรผ่าน AIS OTP —
+            ปลอดภัย ไม่ต้องตั้งรหัสผ่านใหม่ และผูกตัวตนของนักเรียนไว้กับเบอร์จริง
+          </p>
+          <span class="step__tag">AIS OTP · Consent</span>
+        </article>
+
+        <article class="step" data-step="2">
+          <div class="step__num">3</div>
+          <h3>กรอกข้อมูลพื้นฐาน 4 ข้อ</h3>
+          <p>
+            ชื่อ-นามสกุล, รหัสนักเรียน, ชั้น/ห้อง และความสนใจ/เป้าหมาย — สั้น ไว ใช้เวลาไม่ถึงนาที
+            ระบบใช้ข้อมูลนี้ปรับคำแนะนำให้ตรงกับนักเรียนแต่ละคน ไม่ใช่คำตอบทั่วไปที่ใช้ได้กับทุกคน
+          </p>
+          <span class="step__tag">Student Profile</span>
+        </article>
+
+        <article class="step" data-step="3">
+          <div class="step__num">4</div>
+          <h3>ถามอะไรก็ได้ รับคำแนะแนวจาก AI</h3>
+          <p>
+            AI ผูกทุกคำตอบเข้ากับเป้าหมายและความสนใจของนักเรียนคนนั้นโดยเฉพาะ ค้นข้อมูลล่าสุดจากเว็บเมื่อจำเป็น
+            และแนบแหล่งอ้างอิงเสมอ — มนุษย์ยังเป็นคนตัดสินใจ AI เป็นแค่เครื่องมือช่วยหาข้อมูล
+          </p>
+          <span class="step__tag">AI Guidance · Gemini</span>
+        </article>
+
+        <article class="step" data-step="4">
+          <div class="step__num">5</div>
+          <h3>ดู/แชร์ข้อมูลผ่านแดชบอร์ด</h3>
+          <p>
+            นักเรียนดูข้อมูลของตัวเองและแชร์เป็น PDF ให้ผู้ปกครองได้ทุกเมื่อ ส่วนครูแนะแนว
+            ดูสรุปนักเรียนแต่ละห้องผ่าน Teacher View — ลดภาระค้นข้อมูลของครู ไม่ใช่เพิ่มงาน
+          </p>
+          <span class="step__tag">Dashboard · Teacher View</span>
+        </article>
+
+      </div>
+
+      <div class="phone-rail">
+        <div class="phone">
+          <div class="phone__screen">
+            <div class="phone__notch"></div>
+            <div class="phone__bar"><span class="dot">🎓</span> Jump</div>
+            <div class="phone__body">
+
+              <div class="phone__slide" data-slide="0">
+                <div class="bubble bubble--bot">สวัสดีค่ะ 👋 นี่คือ "Jump" ผู้ช่วยแนะแนวการศึกษาประจำโรงเรียนสาธิตค่ะ
+
+ก่อนเริ่ม ขอทราบก่อนนะคะ ว่าคุยด้วยในฐานะ "นักเรียน" หรือ "คุณครู" คะ?</div>
+                <div class="bubble bubble--chip">นักเรียน</div>
+              </div>
+
+              <div class="phone__slide" data-slide="1">
+                <div class="bubble bubble--bot">ก่อนเริ่ม ขอเข้าสู่ระบบด้วยการยืนยันเบอร์โทรผ่าน AIS ก่อนนะคะ
+
+พิมพ์ "ยินยอม" เพื่อเข้าสู่ระบบ</div>
+                <div class="bubble bubble--user">ยินยอม</div>
+                <div class="bubble bubble--bot">📱 ขอเบอร์โทรของน้องเพื่อยืนยันตัวตนผ่าน AIS ก่อนนะคะ</div>
+                <div class="bubble bubble--user">081xxxxxxx</div>
+                <div class="bubble bubble--bot">✅ ยืนยันเบอร์สำเร็จค่ะ</div>
+              </div>
+
+              <div class="phone__slide" data-slide="2">
+                <div class="bubble bubble--bot">ต่อไป ขอชื่อ-นามสกุลเต็มของน้องค่ะ</div>
+                <div class="bubble bubble--user">สมชาย ใจดี</div>
+                <div class="bubble bubble--bot">เรียนอยู่ชั้น/ห้องอะไรคะ?</div>
+                <div class="bubble bubble--user">ม.3/1</div>
+                <div class="bubble bubble--bot">สนใจเรียนต่อสายไหนคะ?</div>
+                <div class="bubble bubble--user">สายวิทย์-คณิต</div>
+              </div>
+
+              <div class="phone__slide" data-slide="3">
+                <div class="bubble bubble--user">อยากเข้าเตรียมอุดมศึกษา สายวิทย์-คณิต ต้องเตรียมตัวยังไง</div>
+                <div class="bubble bubble--bot">สมชายสนใจสายวิทย์-คณิตใช่ไหมคะ 😊 สำหรับเตรียมอุดมฯ ต้องเน้น...</div>
+                <div class="bubble bubble--chip">📎 แหล่งข้อมูล 2 รายการ</div>
+              </div>
+
+              <div class="phone__slide" data-slide="4">
+                <div class="bubble bubble--bot">📋 ข้อมูลของสมชาย (โรงเรียนสาธิต)
+
+ดูแบบเต็ม แก้ไข หรือแชร์เป็น PDF ให้ผู้ปกครองได้ที่แดชบอร์ดค่ะ</div>
+                <div class="bubble bubble--chip">🖨️ แชร์เป็น PDF</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="live" id="try">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Live demo</div>
+      <h2>ลองคุยกับ Jump จริง ๆ</h2>
+      <p>นี่คือแชทบอทตัวจริง ต่อกับ AI จริง — ลองเล่นเป็นนักเรียนดูได้เลย</p>
+    </div>
+
+    <div class="live__panel">
+      <div class="live__header">
+        <div class="who"><span class="avatar">🎓</span> Jump</div>
+        <button class="live__reset" id="resetBtn">🔄 เริ่มเดโมใหม่</button>
+      </div>
+      <div class="live__body" id="chatBody"></div>
+      <div class="live__quick" id="quickReplies"></div>
+      <div class="live__inputrow">
+        <input class="live__input" id="chatInput" placeholder="พิมพ์ข้อความ…" autocomplete="off" />
+        <button class="live__send" id="sendBtn">➤</button>
+      </div>
+    </div>
+    <p class="live__hint">โหมดสาธิต — AIS OTP จะแสดงรหัสให้ในแชทเลย ไม่ส่ง SMS จริง และข้อมูลที่กรอกจะไม่ถูกบันทึกลงระบบจริง</p>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap">สร้างขึ้นเพื่อ Jump Thailand Hackathon Demo · Jump เป็นเครื่องมือช่วยตัดสินใจ ไม่ใช่ผู้ตัดสินอนาคตแทนนักเรียน</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- Scrollytelling: steps + sticky phone ---------------- */
+  function setupSteps() {
+    const steps = Array.from(document.querySelectorAll('.step'));
+    const slides = Array.from(document.querySelectorAll('.phone__slide'));
+
+    function activate(i, animate) {
+      steps.forEach((s, idx) => s.classList.toggle('is-active', idx === i));
+      slides.forEach((s, idx) => s.classList.toggle('is-visible', idx === i));
+      const active = slides[i];
+      if (!active) return;
+      const bubbles = active.querySelectorAll('.bubble');
+      if (!animate || !window.gsap) {
+        gsap && gsap.set(bubbles, { opacity: 1, y: 0 });
+        return;
+      }
+      gsap.fromTo(
+        bubbles,
+        { opacity: 0, y: 10 },
+        { opacity: 1, y: 0, duration: 0.35, stagger: 0.12, ease: 'power2.out' },
+      );
+    }
+
+    activate(0, false);
+
+    if (!window.gsap || !window.ScrollTrigger) return;
+    gsap.registerPlugin(ScrollTrigger);
+
+    steps.forEach((step, i) => {
+      ScrollTrigger.create({
+        trigger: step,
+        start: 'top 65%',
+        end: 'bottom 35%',
+        onEnter: () => activate(i, true),
+        onEnterBack: () => activate(i, true),
+      });
+    });
+  }
+
+  /* ---------------- Reveal animations (respects reduced motion) --------- */
+  function setupReveals() {
+    if (!window.gsap || !window.ScrollTrigger) return;
+    gsap.registerPlugin(ScrollTrigger);
+
+    const mm = gsap.matchMedia();
+
+    // Two single-condition calls — matchMedia() only invokes a handler when
+    // that condition currently matches, so a lone "reduce" key would never
+    // fire for the (much more common) non-reduced case.
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.utils.toArray('.context__card').forEach((card, i) => {
+        gsap.from(card, {
+          opacity: 0, y: 24, duration: 0.5, delay: i * 0.05, ease: 'power2.out',
+          scrollTrigger: { trigger: card, start: 'top 88%' },
+        });
+      });
+      gsap.utils.toArray('.step').forEach((step) => {
+        gsap.from(step, {
+          opacity: 0, y: 20, duration: 0.5, ease: 'power2.out',
+          scrollTrigger: { trigger: step, start: 'top 85%' },
+        });
+      });
+    });
+
+    mm.add('(prefers-reduced-motion: reduce)', () => {
+      gsap.set('.context__card, .step', { opacity: 1, y: 0 });
+    });
+  }
+
+  /* ---------------- Live chat, wired to the real bot backend ------------ */
+  function setupLiveChat() {
+    const body = document.getElementById('chatBody');
+    const input = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const quickWrap = document.getElementById('quickReplies');
+
+    function newSessionId() {
+      const rand = (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2) + Date.now();
+      return 'demo:' + rand;
+    }
+
+    function getSessionId() {
+      let id = localStorage.getItem('jump_demo_session');
+      if (!id) {
+        id = newSessionId();
+        localStorage.setItem('jump_demo_session', id);
+      }
+      return id;
+    }
+
+    let sessionId = getSessionId();
+    let sending = false;
+
+    function scrollToBottom() {
+      body.scrollTop = body.scrollHeight;
+    }
+
+    function addBubble(text, who) {
+      const el = document.createElement('div');
+      el.className = 'bubble bubble--' + who;
+      el.textContent = text;
+      body.appendChild(el);
+      scrollToBottom();
+      return el;
+    }
+
+    function showTyping() {
+      const el = document.createElement('div');
+      el.className = 'typing';
+      el.id = 'typingIndicator';
+      el.innerHTML = '<i></i><i></i><i></i>';
+      body.appendChild(el);
+      scrollToBottom();
+    }
+
+    function hideTyping() {
+      const el = document.getElementById('typingIndicator');
+      if (el) el.remove();
+    }
+
+    function renderQuickReplies(list) {
+      quickWrap.innerHTML = '';
+      (list || []).forEach((label) => {
+        const btn = document.createElement('button');
+        btn.className = 'qbtn';
+        btn.textContent = label;
+        btn.onclick = () => sendMessage(label);
+        quickWrap.appendChild(btn);
+      });
+    }
+
+    async function sendMessage(text) {
+      const trimmed = String(text || '').trim();
+      if (!trimmed || sending) return;
+      sending = true;
+      sendBtn.disabled = true;
+      renderQuickReplies([]);
+      if (trimmed !== '__init__') addBubble(trimmed, 'user');
+      input.value = '';
+      showTyping();
+
+      try {
+        const res = await fetch('/demo/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, text: trimmed === '__init__' ? '' : trimmed }),
+        });
+        const data = await res.json();
+        hideTyping();
+        if (!res.ok) {
+          addBubble('ขออภัยค่ะ ระบบมีปัญหาชั่วคราว ลองใหม่อีกครั้งนะคะ 🙏', 'bot');
+        } else {
+          addBubble(data.reply, 'bot');
+          renderQuickReplies(data.quickReplies);
+        }
+      } catch (e) {
+        hideTyping();
+        addBubble('เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งนะคะ', 'bot');
+      } finally {
+        sending = false;
+        sendBtn.disabled = false;
+      }
+    }
+
+    sendBtn.addEventListener('click', () => sendMessage(input.value));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendMessage(input.value);
+    });
+    resetBtn.addEventListener('click', () => {
+      sessionId = newSessionId();
+      localStorage.setItem('jump_demo_session', sessionId);
+      body.innerHTML = '';
+      renderQuickReplies([]);
+      sendMessage('__init__');
+    });
+
+    // Kick off with the same greeting a fresh LINE "add friend" would show.
+    sendMessage('__init__');
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    setupSteps();
+    setupReveals();
+    setupLiveChat();
+  });
+})();
+</script>
+</body>
+</html>

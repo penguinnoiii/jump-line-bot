@@ -191,7 +191,7 @@ function otpSentMsg(phone, r) {
  * already sets this directly, so this only matters for re-verification.
  */
 function syncVerifiedPhone(userId, p) {
-  if (!p || p.stage !== 'done' || p.anonymous) return;
+  if (!p || p.stage !== 'done' || p.anonymous || p.demo) return;
   const v = getVerifiedPhone(userId);
   if (!v || p.phone === v.phone) return;
   p.phone = v.phone;
@@ -288,18 +288,23 @@ export function profileSummaryForLLM(profile) {
  * Advance a user through the login state machine by one message. Always
  * returns a reply string — call this whenever the user isn't onboarded yet,
  * or sends a reset command. Async: the phone/OTP steps call AIS.
+ * @param {boolean} [demo] Marks the resulting profile as a demo/preview
+ *   session (e.g. the hackathon demo site, public/demo.html) so it never
+ *   gets written to the real cloud store — a visitor playing with the demo
+ *   must never show up in an actual teacher's room dashboard. Caller should
+ *   pass this consistently for every call on a given (demo-prefixed) userId.
  */
-export async function handleOnboarding(userId, text) {
+export async function handleOnboarding(userId, text, demo = false) {
   const t = String(text).trim();
 
   if (RESET_KEYWORD.test(t)) {
-    profiles.set(userId, { stage: 'consent' });
+    profiles.set(userId, { stage: 'consent', demo });
     return CONSENT_ASK_MSG;
   }
 
   let p = profiles.get(userId);
   if (!p) {
-    p = { stage: 'role' };
+    p = { stage: 'role', demo };
     profiles.set(userId, p);
     return FOLLOW_INTRO_MSG;
   }
@@ -397,9 +402,12 @@ export async function handleOnboarding(userId, text) {
     p.completedAt = Date.now();
     // Persist to the cloud store for teacher lookup. Fire-and-forget: don't
     // make the student wait on a network call to get their "done" reply.
-    persistProfile(userId, p).catch((err) =>
-      console.error('[onboarding] persistProfile failed:', err),
-    );
+    // Skipped for demo sessions — see the `demo` param doc above.
+    if (!p.demo) {
+      persistProfile(userId, p).catch((err) =>
+        console.error('[onboarding] persistProfile failed:', err),
+      );
+    }
     return doneSummary(p);
   }
   p.stage = next.key;

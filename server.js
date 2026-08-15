@@ -175,6 +175,79 @@ app.put('/dashboard/api/student/me', dashboardJson, requireStudentAuth, async (r
   }
 });
 
+// --- Hackathon demo site (public/demo.html) ----------------------------------
+// A public, non-LINE chat surface that exercises the SAME onboarding +
+// guidance logic as the real bot (handleOnboarding / generateGuidance), keyed
+// by a random per-browser session id instead of a LINE userId. Two things
+// keep this safe to expose publicly on the pitch/demo page:
+//   - AIS runs in mock mode without real credentials (src/ais.js) — no real
+//     SMS ever goes out; the OTP code is just handed back in the response.
+//   - Every demo session is created with demo=true, which skips ALL cloud
+//     persistence (src/onboarding.js) — a visitor's fake data can never show
+//     up in a real teacher's room dashboard.
+app.get('/demo', (_req, res) => res.sendFile('demo.html', { root: 'public' }));
+
+const demoJson = express.json();
+const DEMO_PREFIX = 'demo:';
+const DEMO_MSG_CAP = 60; // guard against a runaway client loop burning API quota
+const demoMessageCounts = new Map(); // sessionId -> count
+
+function isDemoSession(id) {
+  return typeof id === 'string' && id.startsWith(DEMO_PREFIX) && id.length < 80;
+}
+
+app.post('/demo/api/chat', demoJson, async (req, res) => {
+  try {
+    const { sessionId, text } = req.body || {};
+    if (!isDemoSession(sessionId)) return res.status(400).json({ error: 'invalid_session' });
+    // Empty text is valid — it's how the client kicks off a brand-new session
+    // to get the same greeting a real LINE 'follow' event would trigger.
+    const userText = String(text ?? '').trim();
+
+    const count = (demoMessageCounts.get(sessionId) || 0) + 1;
+    demoMessageCounts.set(sessionId, count);
+    if (count > DEMO_MSG_CAP) {
+      return res.json({
+        reply: 'ครบจำนวนข้อความสาธิตของรอบนี้แล้วค่ะ 🙏 กดปุ่ม "เริ่มเดโมใหม่" เพื่อเล่นอีกรอบนะคะ',
+        quickReplies: [],
+      });
+    }
+
+    if (!isOnboarded(sessionId) || isResetCommand(userText)) {
+      if (isResetCommand(userText)) resetHistory(sessionId);
+      const reply = await handleOnboarding(sessionId, userText, true);
+      return res.json({
+        reply,
+        quickReplies: needsRoleQuickReply(sessionId) ? ['นักเรียน', 'คุณครู'] : [],
+      });
+    }
+
+    if (isProfileInfoRequest(userText)) {
+      return res.json({ reply: profileCardMessage(getProfile(sessionId)), quickReplies: [] });
+    }
+
+    const identityReply = await handleIdentityMessage(sessionId, userText);
+    if (identityReply) {
+      syncPhoneIfOnboarded(sessionId);
+      return res.json({ reply: identityReply, quickReplies: [] });
+    }
+
+    const { text: reply, sources } = await generateGuidance(
+      sessionId,
+      userText,
+      getProfile(sessionId),
+    );
+    const sourceBlock = sources.length
+      ? '\n\n📎 แหล่งข้อมูล:\n' +
+        sources.map((s, i) => `${i + 1}. ${s.title}\n${s.url}`).join('\n')
+      : '';
+    res.json({ reply: reply + sourceBlock, quickReplies: [] });
+  } catch (err) {
+    console.error('demo chat error:', err);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 // LINE webhook. `middleware` reads the raw body and verifies the signature —
 // do NOT put express.json() in front of it on this route.
 app.post('/webhook', middleware({ channelSecret }), async (req, res) => {
