@@ -1,0 +1,8 @@
+# Reverse proxy for jump-line-bot on a self-hosted VM (e.g. Oracle Cloud
+# Always Free). Caddy handles HTTPS automatically (Let's Encrypt) — just set
+# your real domain below and point its DNS A record at the VM's public IP.
+#
+# Replace this with your actual domain (or a free one from duckdns.org).
+your-domain.example.com {
+	reverse_proxy localhost:3000
+}
