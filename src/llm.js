@@ -72,7 +72,10 @@ export async function generateGuidance(userId, userText, profile = null) {
 
   let sources = [];
   if (needsWebSearch(userText)) {
-    const { results } = await webSearch(userText);
+    // Bias the search itself toward Thai sources, not just the prompt —
+    // a generic query like "เรียนวิศวะต้องเตรียมตัวยังไง" would otherwise
+    // happily return results about universities anywhere in the world.
+    const { results } = await webSearch(`${userText} ประเทศไทย`);
     if (results.length) {
       sources = results;
       const context = results
