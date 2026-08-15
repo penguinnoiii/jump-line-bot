@@ -359,13 +359,13 @@
   .dash-step__logout:hover { color: var(--ink); }
   .dash-view__pdf { width: 100%; margin-top: 14px; }
 
-  /* Card messages (rich-message promo, guidance answer, event notification)
-     are tappable, like a real LINE Flex Message — cursor + a subtle press
-     state signal it, and each has its own click handler wiring into the
-     shared detail-modal below. */
-  .rich-msg-card, .guidance-card, .event-card { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
-  .rich-msg-card:hover, .guidance-card:hover, .event-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.1); }
-  .rich-msg-card:active, .guidance-card:active, .event-card:active { transform: scale(.98); }
+  /* Card messages (rich-message promo, event notification) are tappable,
+     like a real LINE Flex Message — cursor + a subtle press state signal
+     it, and each has its own click handler wiring into the shared
+     detail-modal below. */
+  .rich-msg-card, .event-card { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+  .rich-msg-card:hover, .event-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.1); }
+  .rich-msg-card:active, .event-card:active { transform: scale(.98); }
 
   /* Detail popup opened by tapping a card message. */
   .detail-modal {
@@ -992,23 +992,6 @@
         (points ? `<ul class="guidance-card__points">${points}</ul>` : '') +
         (sources ? `<div class="guidance-card__sources">${sources}</div>` : '') +
         '</div>';
-      el.addEventListener('click', (e) => {
-        // Let source links behave normally (open the URL) instead of also
-        // popping the detail modal on top of the new tab.
-        if (e.target.closest('a')) return;
-        if (!window.__openCardDetail) return;
-        const detailPoints = (card.points || []).map((p) => `<li>${escapeHtml(p)}</li>`).join('');
-        const detailSources = (card.sources || [])
-          .map((s, i) => `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">📎 ${i + 1}. ${escapeHtml(s.title)}</a>`)
-          .join('');
-        window.__openCardDetail({
-          barTitle: '🎓 Numpa',
-          html:
-            `<p class="detail-modal__title">${escapeHtml(card.headline)}</p>` +
-            (detailPoints ? `<ul class="detail-modal__points">${detailPoints}</ul>` : '') +
-            (detailSources ? `<div class="detail-modal__sources">${detailSources}</div>` : ''),
-        });
-      });
       body.appendChild(el);
       scrollToBottom();
     }
