@@ -195,7 +195,7 @@
   }
   .qbtn:hover { background: var(--line-green-soft); }
   .live__inputrow {
-    display: flex; gap: 8px; padding: 12px; background: var(--surface-2); border-top: 1px solid var(--border);
+    position: relative; display: flex; gap: 8px; padding: 12px; background: var(--surface-2); border-top: 1px solid var(--border);
   }
   .live__input {
     flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
@@ -207,9 +207,16 @@
     font-size: 17px; cursor: pointer; flex-shrink: 0;
   }
   .live__send:disabled { opacity: .5; cursor: default; }
+  /* Popup floats OVER the chat body instead of pushing the panel taller —
+     absolutely positioned, anchored to the (position:relative) input row's
+     own top edge via bottom:100%, so the phone frame's total size never
+     changes whether the menu is open or collapsed, just like the real app. */
+  .live__richmenu-popup {
+    position: absolute; left: 0; right: 0; bottom: 100%; z-index: 5;
+    display: flex; flex-direction: column; box-shadow: 0 -8px 20px -8px rgba(0,0,0,.35);
+  }
   /* Collapsible wrapper — grid-rows trick animates smoothly without knowing
-     the image's height ahead of time. Sits ABOVE the input row, like the
-     real LINE app: rich menu pops up over the keyboard area, not below it. */
+     the image's height ahead of time. */
   .live__richmenu-wrap {
     display: grid; grid-template-rows: 1fr; transition: grid-template-rows .28s ease;
   }
@@ -501,20 +508,22 @@
       </div>
       <div class="live__body" id="chatBody"></div>
       <div class="live__quick" id="quickReplies"></div>
-      <div class="live__richmenu-wrap" id="richmenuWrap">
-        <div class="live__richmenu-inner">
-          <div class="live__richmenu">
-            <img src="/assets/richmenu-preview.jpg" alt="Rich Menu ของ Jump" />
-            <button class="rm-dashboard" id="rmDashboard" aria-label="แดชบอร์ด"></button>
-            <button class="rm-school" id="rmSchool" aria-label="ค้นหาโรงเรียน"></button>
-            <button class="rm-course" id="rmCourse" aria-label="แนะแนวสายการเรียน"></button>
-          </div>
-        </div>
-      </div>
-      <button class="live__richmenu-toggle" id="richmenuToggle" aria-label="แสดง/ซ่อน Rich Menu">
-        <span id="richmenuChevron">▾</span>
-      </button>
       <div class="live__inputrow">
+        <div class="live__richmenu-popup">
+          <div class="live__richmenu-wrap" id="richmenuWrap">
+            <div class="live__richmenu-inner">
+              <div class="live__richmenu">
+                <img src="/assets/richmenu-preview.jpg" alt="Rich Menu ของ Jump" />
+                <button class="rm-dashboard" id="rmDashboard" aria-label="แดชบอร์ด"></button>
+                <button class="rm-school" id="rmSchool" aria-label="ค้นหาโรงเรียน"></button>
+                <button class="rm-course" id="rmCourse" aria-label="แนะแนวสายการเรียน"></button>
+              </div>
+            </div>
+          </div>
+          <button class="live__richmenu-toggle" id="richmenuToggle" aria-label="แสดง/ซ่อน Rich Menu">
+            <span id="richmenuChevron">▾</span>
+          </button>
+        </div>
         <input class="live__input" id="chatInput" placeholder="พิมพ์ข้อความ…" autocomplete="off" />
         <button class="live__send" id="sendBtn">➤</button>
       </div>
