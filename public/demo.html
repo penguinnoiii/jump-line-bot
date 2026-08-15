@@ -359,6 +359,51 @@
   .dash-step__logout:hover { color: var(--ink); }
   .dash-view__pdf { width: 100%; margin-top: 14px; }
 
+  /* Card messages (rich-message promo, guidance answer, event notification)
+     are tappable, like a real LINE Flex Message — cursor + a subtle press
+     state signal it, and each has its own click handler wiring into the
+     shared detail-modal below. */
+  .rich-msg-card, .guidance-card, .event-card { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+  .rich-msg-card:hover, .guidance-card:hover, .event-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.1); }
+  .rich-msg-card:active, .guidance-card:active, .event-card:active { transform: scale(.98); }
+
+  /* Detail popup opened by tapping a card message. */
+  .detail-modal {
+    position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+    padding: 20px; visibility: hidden; opacity: 0; transition: opacity .2s ease, visibility .2s ease;
+  }
+  .detail-modal.is-open { visibility: visible; opacity: 1; }
+  .detail-modal__backdrop { position: absolute; inset: 0; background: rgba(13, 17, 23, .55); }
+  .detail-modal__window {
+    position: relative; width: 360px; max-width: 100%; max-height: 82vh; background: var(--surface);
+    border-radius: 20px; overflow: hidden; box-shadow: var(--shadow); display: flex; flex-direction: column;
+    transform: translateY(14px) scale(.97); transition: transform .2s ease;
+  }
+  .detail-modal.is-open .detail-modal__window { transform: translateY(0) scale(1); }
+  .detail-modal__bar {
+    background: var(--line-green); color: #fff; font-weight: 700; font-size: 13.5px;
+    padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  .detail-modal__close {
+    background: rgba(255,255,255,.18); color: #fff; border: none; border-radius: 999px;
+    width: 24px; height: 24px; font-size: 13px; cursor: pointer; line-height: 1; flex-shrink: 0;
+  }
+  .detail-modal__body { padding: 18px; overflow-y: auto; font-size: 14px; color: var(--ink); line-height: 1.6; }
+  .detail-modal__art { font-size: 34px; margin-bottom: 10px; }
+  .detail-modal__title { font-weight: 700; font-size: 16px; margin: 0 0 10px; }
+  .detail-modal__meta { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); margin-bottom: 12px; }
+  .detail-modal__desc { margin: 0 0 6px; white-space: pre-line; }
+  .detail-modal__points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .detail-modal__points li { display: flex; gap: 6px; }
+  .detail-modal__points li::before { content: '•'; color: var(--line-green); font-weight: 700; flex-shrink: 0; }
+  .detail-modal__sources { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .detail-modal__sources a { font-size: 12.5px; color: var(--primary); text-decoration: none; }
+  .detail-modal__sources a:hover { text-decoration: underline; }
+  .detail-modal__match {
+    font-size: 12.5px; color: var(--line-green); font-weight: 700; margin-top: 12px; padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
   /* ---- Dashboard preview (persistent memory) ---- */
   .dash { padding: 20px 0 100px; }
   .dash__card {
@@ -756,6 +801,17 @@
 
 <div id="dash-print"></div>
 
+<div class="detail-modal" id="cardDetailModal" aria-hidden="true">
+  <div class="detail-modal__backdrop" id="cardDetailBackdrop"></div>
+  <div class="detail-modal__window" role="dialog" aria-label="รายละเอียด">
+    <div class="detail-modal__bar">
+      <span id="cardDetailBarTitle">รายละเอียด</span>
+      <button class="detail-modal__close" id="cardDetailClose" aria-label="ปิด">✕</button>
+    </div>
+    <div class="detail-modal__body" id="cardDetailBody"></div>
+  </div>
+</div>
+
 <footer class="footer">
   <div class="wrap">สร้างขึ้นเพื่อ Numpa Hackathon Demo · Numpa เป็นเครื่องมือช่วยตัดสินใจ ไม่ใช่ผู้ตัดสินอนาคตแทนนักเรียน</div>
 </footer>
@@ -899,6 +955,21 @@
         '<p>ทุนเรียนฟรี 100% สำหรับนักเรียน ม.3 ที่สนใจสายวิทย์-คณิต ปิดรับสมัคร 30 ก.ย. นี้</p>' +
         '<div class="rich-msg-card__cta"><span>ดูรายละเอียดทุน</span><span>→</span></div>' +
         '</div>';
+      el.addEventListener('click', () => {
+        if (!window.__openCardDetail) return;
+        window.__openCardDetail({
+          barTitle: '🎓✨ ทุนการศึกษา',
+          html:
+            '<p class="detail-modal__title">ทุนการศึกษาสายวิทย์-คณิต เปิดรับสมัครแล้ว</p>' +
+            '<div class="detail-modal__meta">' +
+            '<span>📅 ปิดรับสมัคร 30 ก.ย. 2569</span>' +
+            '<span>🎯 นักเรียน ม.3 สายวิทย์-คณิต</span>' +
+            '</div>' +
+            '<p class="detail-modal__desc">ทุนเรียนฟรี 100% ครอบคลุมค่าเทอมตลอดปีการศึกษา สำหรับนักเรียนที่สนใจสายวิทย์-คณิต ' +
+            'และมีผลการเรียนเฉลี่ยไม่ต่ำกว่า 3.00 ผู้สนใจสมัครผ่านครูแนะแนวประจำโรงเรียน พร้อมแนบใบแสดงผลการเรียนล่าสุด ' +
+            'ประกาศผลภายใน 2 สัปดาห์หลังปิดรับสมัคร</p>',
+        });
+      });
       body.appendChild(el);
       scrollToBottom();
     }
@@ -921,6 +992,23 @@
         (points ? `<ul class="guidance-card__points">${points}</ul>` : '') +
         (sources ? `<div class="guidance-card__sources">${sources}</div>` : '') +
         '</div>';
+      el.addEventListener('click', (e) => {
+        // Let source links behave normally (open the URL) instead of also
+        // popping the detail modal on top of the new tab.
+        if (e.target.closest('a')) return;
+        if (!window.__openCardDetail) return;
+        const detailPoints = (card.points || []).map((p) => `<li>${escapeHtml(p)}</li>`).join('');
+        const detailSources = (card.sources || [])
+          .map((s, i) => `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">📎 ${i + 1}. ${escapeHtml(s.title)}</a>`)
+          .join('');
+        window.__openCardDetail({
+          barTitle: '🎓 Numpa',
+          html:
+            `<p class="detail-modal__title">${escapeHtml(card.headline)}</p>` +
+            (detailPoints ? `<ul class="detail-modal__points">${detailPoints}</ul>` : '') +
+            (detailSources ? `<div class="detail-modal__sources">${detailSources}</div>` : ''),
+        });
+      });
       body.appendChild(el);
       scrollToBottom();
     }
@@ -942,6 +1030,23 @@
           ? `<p class="event-card__match">ตรงกับความสนใจ: ${escapeHtml(card.matchedInterest)}</p>`
           : '') +
         '</div></div>';
+      el.addEventListener('click', () => {
+        if (!window.__openCardDetail) return;
+        window.__openCardDetail({
+          barTitle: '🔔 กิจกรรมที่น่าจะสนใจ',
+          html:
+            `<div class="detail-modal__art">${escapeHtml(card.icon || '📌')}</div>` +
+            `<p class="detail-modal__title">${escapeHtml(card.title)}</p>` +
+            '<div class="detail-modal__meta">' +
+            `<span>📅 ${escapeHtml(card.date)}</span>` +
+            (card.location ? `<span>📍 ${escapeHtml(card.location)}</span>` : '') +
+            '</div>' +
+            `<p class="detail-modal__desc">${escapeHtml(card.detail || card.desc)}</p>` +
+            (card.matchedInterest
+              ? `<div class="detail-modal__match">ตรงกับความสนใจ: ${escapeHtml(card.matchedInterest)}</div>`
+              : ''),
+        });
+      });
       body.appendChild(el);
       scrollToBottom();
     }
@@ -1068,6 +1173,38 @@
      students — instead of just handing the profile over. Both logins stay
      "signed in" for the rest of this browser session, like the real thing,
      so reopening the modal doesn't ask again until "ออกจากระบบ" is used. */
+  /* ---- Card detail popup: tapping any card message (Rich Message promo,
+     the AI's guidance answer, or an Open House notification) opens a small
+     window with the full detail, the way a real LINE Flex Message opens a
+     linked page or a full-size view when tapped. */
+  function setupCardDetailModal() {
+    const modal = document.getElementById('cardDetailModal');
+    const backdrop = document.getElementById('cardDetailBackdrop');
+    const closeBtn = document.getElementById('cardDetailClose');
+    const barTitle = document.getElementById('cardDetailBarTitle');
+    const bodyEl = document.getElementById('cardDetailBody');
+
+    function open({ barTitle: title, html }) {
+      barTitle.textContent = title;
+      bodyEl.innerHTML = html;
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function close() {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    backdrop.addEventListener('click', close);
+    closeBtn.addEventListener('click', close);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('is-open')) close();
+    });
+
+    window.__openCardDetail = open;
+  }
+
   function setupDashModal() {
     const modal = document.getElementById('dashModal');
     const backdrop = document.getElementById('dashModalBackdrop');
@@ -1278,6 +1415,7 @@
     setupSteps();
     setupReveals();
     setupLiveChat();
+    setupCardDetailModal();
     setupDashModal();
 
     // The rich-menu preview image loads async and changes that card's
