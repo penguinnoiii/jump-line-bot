@@ -246,6 +246,19 @@
   .rich-msg-card__body p { margin: 0 0 8px; font-size: 11.5px; color: #586576; }
   .rich-msg-card__cta { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: var(--line-green); border-top: 1px solid #eef1f4; padding-top: 7px; }
 
+  /* Guidance answer rendered as a card (mirrors the real LINE bot's Flex
+     Message — src/richMessage.js) instead of a plain text bubble. */
+  .guidance-card { align-self: flex-start; width: 100%; max-width: 88%; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 1px rgba(0,0,0,.06); }
+  .guidance-card__bar { background: var(--line-green); padding: 7px 12px; font-size: 11.5px; font-weight: 700; color: #fff; }
+  .guidance-card__body { padding: 11px 12px; }
+  .guidance-card__headline { font-weight: 700; font-size: 13.5px; color: #16202e; margin: 0 0 8px; }
+  .guidance-card__points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .guidance-card__points li { display: flex; gap: 6px; font-size: 12.5px; color: #16202e; line-height: 1.45; }
+  .guidance-card__points li::before { content: '•'; color: var(--line-green); font-weight: 700; flex-shrink: 0; }
+  .guidance-card__sources { border-top: 1px solid #eef1f4; margin-top: 10px; padding-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .guidance-card__sources a { font-size: 11px; color: var(--primary); text-decoration: none; }
+  .guidance-card__sources a:hover { text-decoration: underline; }
+
   .typing { display: inline-flex; gap: 4px; padding: 10px 14px; background: #fff; border-radius: 14px; align-self: flex-start; }
   .typing i { width: 6px; height: 6px; border-radius: 50%; background: #b7bcc7; animation: bounce 1.1s infinite ease-in-out; }
   .typing i:nth-child(2) { animation-delay: .15s; }
@@ -713,6 +726,12 @@
       body.scrollTop = body.scrollHeight;
     }
 
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = String(str ?? '');
+      return div.innerHTML;
+    }
+
     function addBubble(text, who) {
       const el = document.createElement('div');
       el.className = 'bubble bubble--' + who;
@@ -734,6 +753,28 @@
         '<h4>ทุนการศึกษาสายวิทย์-คณิต เปิดรับสมัครแล้ว</h4>' +
         '<p>ทุนเรียนฟรี 100% สำหรับนักเรียน ม.3 ที่สนใจสายวิทย์-คณิต ปิดรับสมัคร 30 ก.ย. นี้</p>' +
         '<div class="rich-msg-card__cta"><span>ดูรายละเอียดทุน</span><span>→</span></div>' +
+        '</div>';
+      body.appendChild(el);
+      scrollToBottom();
+    }
+
+    // Mirrors the real LINE bot's Flex Message (src/richMessage.js) — a
+    // headline + up to 5 bullet points, instead of a plain text bubble.
+    function addGuidanceCard(card) {
+      const points = (card.points || [])
+        .map((p) => `<li>${escapeHtml(p)}</li>`)
+        .join('');
+      const sources = (card.sources || [])
+        .map((s, i) => `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">📎 ${i + 1}. ${escapeHtml(s.title)}</a>`)
+        .join('');
+      const el = document.createElement('div');
+      el.className = 'guidance-card';
+      el.innerHTML =
+        '<div class="guidance-card__bar">🎓 Jump</div>' +
+        '<div class="guidance-card__body">' +
+        `<p class="guidance-card__headline">${escapeHtml(card.headline)}</p>` +
+        (points ? `<ul class="guidance-card__points">${points}</ul>` : '') +
+        (sources ? `<div class="guidance-card__sources">${sources}</div>` : '') +
         '</div>';
       body.appendChild(el);
       scrollToBottom();
@@ -784,6 +825,9 @@
         hideTyping();
         if (!res.ok) {
           addBubble('ขออภัยค่ะ ระบบมีปัญหาชั่วคราว ลองใหม่อีกครั้งนะคะ 🙏', 'bot');
+        } else if (data.card) {
+          addGuidanceCard(data.card);
+          renderQuickReplies(data.quickReplies);
         } else {
           addBubble(data.reply, 'bot');
           renderQuickReplies(data.quickReplies);

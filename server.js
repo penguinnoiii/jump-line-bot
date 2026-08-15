@@ -6,6 +6,7 @@
 import express from 'express';
 import { middleware, messagingApi } from '@line/bot-sdk';
 import { generateGuidance, resetHistory, summarizeConversation } from './src/llm.js';
+import { buildGuidanceFlexMessage, parseGuidanceStructure } from './src/richMessage.js';
 import {
   handleIdentityMessage,
   extractThaiMobile,
@@ -245,11 +246,17 @@ app.post('/demo/api/chat', demoJson, async (req, res) => {
       userText,
       getProfile(sessionId),
     );
-    const sourceBlock = sources.length
+    // `card` mirrors what the real LINE bot renders as a Flex Message
+    // (see src/richMessage.js) — lets the demo site show the same
+    // headline+bullets card instead of a plain text bubble. Null when the
+    // reply didn't parse cleanly, same fallback the real bot uses.
+    const structure = parseGuidanceStructure(reply);
+    const card = structure ? { ...structure, sources: sources.slice(0, 3) } : null;
+    const sourceBlock = !card && sources.length
       ? '\n\n📎 แหล่งข้อมูล:\n' +
         sources.map((s, i) => `${i + 1}. ${s.title}\n${s.url}`).join('\n')
       : '';
-    res.json({ reply: reply + sourceBlock, quickReplies: [] });
+    res.json({ reply: reply + sourceBlock, quickReplies: [], card });
 
     // Fire-and-forget, same as the real LINE flow — updateConversationSummary
     // keeps this in-memory only for demo sessions (see its own doc comment),
@@ -381,13 +388,22 @@ async function handleEvent(event) {
       userText,
       getProfile(userId),
     );
-    const sourceBlock = sources.length
-      ? '\n\n📎 แหล่งข้อมูล:\n' +
-        sources.map((s, i) => `${i + 1}. ${s.title}\n${s.url}`).join('\n')
-      : '';
+    // Rich Message card (headline + bullets) when the reply parses cleanly;
+    // falls back to plain text (with the old inline source list) whenever
+    // it doesn't — a formatting slip from the model should never break the
+    // reply.
+    const flexMessage = buildGuidanceFlexMessage(text, sources);
+    const message = flexMessage || {
+      type: 'text',
+      text:
+        text +
+        (sources.length
+          ? '\n\n📎 แหล่งข้อมูล:\n' + sources.map((s, i) => `${i + 1}. ${s.title}\n${s.url}`).join('\n')
+          : ''),
+    };
     await client.replyMessage({
       replyToken: event.replyToken,
-      messages: [{ type: 'text', text: text + sourceBlock }],
+      messages: [message],
     });
 
     // Fire-and-forget: fold this exchange into the student's rolling
