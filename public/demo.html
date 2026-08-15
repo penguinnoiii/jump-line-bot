@@ -296,7 +296,43 @@
   .dash-modal__body { padding: 16px; overflow-y: auto; font-size: 13.5px; }
   .dash-modal__body .dash__fields { grid-template-columns: 96px 1fr; font-size: 13px; }
   .dash-modal__body .dash__summary { font-size: 13px; }
-  .dash-modal__body .dash__empty { padding: 10px 0; font-size: 13px; }
+
+  /* Role picker + login steps, mirroring the real /dashboard: teacher needs
+     a password, student needs to re-verify their phone via OTP. */
+  .dash-step__intro { font-size: 13.5px; color: var(--muted); margin: 0 0 12px; }
+  .dash-step__back {
+    background: none; border: none; color: var(--faint); font-size: 12.5px; cursor: pointer;
+    padding: 0; margin-bottom: 10px; font-family: inherit;
+  }
+  .dash-step__back:hover { color: var(--ink); }
+  .dash-role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .dash-role-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 10px;
+    border-radius: 14px; border: 1px solid var(--border); background: var(--surface-2);
+    cursor: pointer; font-weight: 700; font-size: 13.5px; color: var(--ink); font-family: inherit;
+  }
+  .dash-role-btn:hover { border-color: var(--line-green); background: var(--line-green-soft); }
+  .dash-role-btn__icon { font-size: 28px; }
+  .dash-input {
+    display: block; width: 100%; box-sizing: border-box; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+    font-size: 14px; color: var(--ink); font-family: inherit; margin-bottom: 10px;
+  }
+  .dash-input:focus { outline: none; border-color: var(--primary); }
+  .dash-step__submit { width: 100%; }
+  .dash-step__error { color: #e5484d; font-size: 12.5px; margin: 8px 0 0; }
+  .dash-step__error:empty { display: none; }
+  .dash-step__hint { color: var(--faint); font-size: 12px; margin: 8px 0 0; }
+  .dash-view__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .dash-view__badge {
+    font-size: 12px; font-weight: 700; color: var(--line-green); background: var(--line-green-soft);
+    padding: 4px 10px; border-radius: 999px;
+  }
+  .dash-step__logout {
+    background: none; border: none; color: var(--faint); font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+  .dash-step__logout:hover { color: var(--ink); }
+  .dash-view__pdf { width: 100%; margin-top: 14px; }
 
   /* ---- Dashboard preview (persistent memory) ---- */
   .dash { padding: 20px 0 100px; }
@@ -609,23 +645,67 @@
 
   <div class="dash-modal" id="dashModal" aria-hidden="true">
     <div class="dash-modal__backdrop" id="dashModalBackdrop"></div>
-    <div class="dash-modal__window" role="dialog" aria-label="แดชบอร์ดของฉัน">
+    <div class="dash-modal__window" role="dialog" aria-label="แดชบอร์ด">
       <div class="dash-modal__bar">
-        <span>📊 แดชบอร์ดของฉัน</span>
+        <span>📊 แดชบอร์ด</span>
         <button class="dash-modal__close" id="dashModalClose" aria-label="ปิด">✕</button>
       </div>
       <div class="dash-modal__body">
-        <p class="dash__empty" id="dashModalEmpty">ยังไม่มีข้อมูล — คุยกับ Jump ในแชทก่อนนะคะ</p>
-        <div id="dashModalFields" style="display:none">
+
+        <div class="dash-step" id="dashStepPicker">
+          <p class="dash-step__intro">เลือกว่าคุณเป็นใคร เพื่อเข้าดูแดชบอร์ด — เหมือนของจริงที่แยกสิทธิ์ครู/นักเรียน</p>
+          <div class="dash-role-grid">
+            <button class="dash-role-btn" id="dashPickTeacher">
+              <span class="dash-role-btn__icon">👩‍🏫</span><span>คุณครู</span>
+            </button>
+            <button class="dash-role-btn" id="dashPickStudent">
+              <span class="dash-role-btn__icon">🎓</span><span>นักเรียน</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="dash-step" id="dashStepTeacherLogin" style="display:none">
+          <button class="dash-step__back" data-back>← กลับ</button>
+          <p class="dash-step__intro">เข้าสู่ระบบครูด้วยรหัสผ่าน</p>
+          <input class="dash-input" id="dashTeacherPassword" type="password" placeholder="รหัสผ่าน" autocomplete="off" />
+          <button class="btn btn--primary dash-step__submit" id="dashTeacherSubmit">เข้าสู่ระบบ</button>
+          <p class="dash-step__error" id="dashTeacherError"></p>
+          <p class="dash-step__hint" id="dashTeacherHint"></p>
+        </div>
+
+        <div class="dash-step" id="dashStepStudentPhone" style="display:none">
+          <button class="dash-step__back" data-back>← กลับ</button>
+          <p class="dash-step__intro">ยืนยันเบอร์โทรที่ใช้คุยกับ Jump เพื่อดูข้อมูลของฉัน</p>
+          <input class="dash-input" id="dashStudentPhone" type="tel" placeholder="เบอร์โทร เช่น 0812345678" autocomplete="off" />
+          <button class="btn btn--primary dash-step__submit" id="dashStudentPhoneSubmit">ขอรหัส OTP</button>
+          <p class="dash-step__error" id="dashStudentPhoneError"></p>
+        </div>
+
+        <div class="dash-step" id="dashStepStudentOtp" style="display:none">
+          <button class="dash-step__back" id="dashStudentOtpBack">← กลับ</button>
+          <p class="dash-step__intro">กรอกรหัส OTP 6 หลักที่ได้รับ</p>
+          <input class="dash-input" id="dashStudentOtp" type="text" inputmode="numeric" placeholder="รหัส 6 หลัก" autocomplete="off" />
+          <button class="btn btn--primary dash-step__submit" id="dashStudentOtpSubmit">ยืนยัน</button>
+          <p class="dash-step__error" id="dashStudentOtpError"></p>
+          <p class="dash-step__hint" id="dashStudentOtpHint"></p>
+        </div>
+
+        <div class="dash-step" id="dashStepView" style="display:none">
+          <div class="dash-view__head">
+            <span class="dash-view__badge" id="dashViewBadge"></span>
+            <button class="dash-step__logout" id="dashLogout">ออกจากระบบ</button>
+          </div>
           <dl class="dash__fields">
-            <dt>ชื่อ-นามสกุล</dt><dd id="dashModalFullName"></dd>
-            <dt>รหัสนักเรียน</dt><dd id="dashModalStudentId"></dd>
-            <dt>ชั้น/ห้อง</dt><dd id="dashModalGrade"></dd>
-            <dt>ความสนใจ/เป้าหมาย</dt><dd id="dashModalInterest"></dd>
+            <dt>ชื่อ-นามสกุล</dt><dd id="dashViewFullName"></dd>
+            <dt>รหัสนักเรียน</dt><dd id="dashViewStudentId"></dd>
+            <dt>ชั้น/ห้อง</dt><dd id="dashViewGrade"></dd>
+            <dt>ความสนใจ/เป้าหมาย</dt><dd id="dashViewInterest"></dd>
           </dl>
           <div class="dash__summary-label">📝 สรุปจากการคุยกับ Jump</div>
-          <div class="dash__summary" id="dashModalSummary"></div>
+          <div class="dash__summary" id="dashViewSummary"></div>
+          <button class="btn btn--ghost dash-view__pdf" id="dashViewPdf">🖨️ แชร์เป็น PDF</button>
         </div>
+
       </div>
     </div>
   </div>
@@ -634,34 +714,18 @@
 <section class="dash" id="dash">
   <div class="wrap">
     <div class="section-head">
-      <div class="kicker">Persistent memory</div>
-      <h2>Jump จำบทสนทนาได้ — ไม่ต้องเริ่มใหม่ทุกครั้ง</h2>
+      <div class="kicker">Persistent memory + Dashboard</div>
+      <h2>Jump จำบทสนทนาได้ — พร้อมแดชบอร์ดแยกสิทธิ์ครู/นักเรียน</h2>
       <p>
-        หลังคุยกับ Jump ในแชทด้านบน ระบบจะสรุปสิ่งที่คุยกันไว้อัตโนมัติ แล้วใช้สรุปนี้ต่อในครั้งถัดไป
-        — เหมือนหน้าแดชบอร์ดของนักเรียนจริง ๆ กดรีเฟรชด้านล่างเพื่อดูผลจากบทสนทนาที่เพิ่งคุยไป
+        หลังคุยกับ Jump ในแชทด้านบน ระบบจะสรุปสิ่งที่คุยกันไว้อัตโนมัติ แล้วเข้าดูได้ผ่านแดชบอร์ด 2 แบบเหมือนของจริง —
+        <b>คุณครู</b> เข้าด้วยรหัสผ่าน และ <b>นักเรียน</b> ยืนยันตัวตนด้วยเบอร์โทร (OTP)
       </p>
     </div>
 
     <div class="dash__card">
-      <div class="dash__row">
-        <button class="btn btn--ghost" id="dashRefresh">🔄 รีเฟรชข้อมูล</button>
-        <button class="btn btn--primary" id="dashPdf">🖨️ แชร์เป็น PDF</button>
-      </div>
-      <div id="dashBody">
-        <p class="dash__empty" id="dashEmpty">ยังไม่มีข้อมูล — คุยกับ Jump ในแชทด้านบนแล้วเข้าสู่ระบบก่อนนะคะ</p>
-        <div id="dashFields" style="display:none">
-          <dl class="dash__fields">
-            <dt>ชื่อ-นามสกุล</dt><dd id="dashFullName"></dd>
-            <dt>รหัสนักเรียน</dt><dd id="dashStudentId"></dd>
-            <dt>ชั้น/ห้อง</dt><dd id="dashGrade"></dd>
-            <dt>ความสนใจ/เป้าหมาย</dt><dd id="dashInterest"></dd>
-          </dl>
-          <div class="dash__summary-label">📝 สรุปจากการคุยกับ Jump</div>
-          <div class="dash__summary" id="dashSummary"></div>
-        </div>
-      </div>
+      <button class="btn btn--primary dash__row" id="dashOpenBtn" style="width:100%">🔓 เปิดแดชบอร์ด</button>
     </div>
-    <p class="live__hint">โหมดสาธิต — สรุปนี้เก็บไว้ในหน่วยความจำของเซสชันนี้เท่านั้น ไม่ถูกบันทึกลงระบบจริงเหมือนของนักเรียนจริง</p>
+    <p class="live__hint">โหมดสาธิต — ข้อมูลนี้เก็บไว้ในหน่วยความจำของเซสชันนี้เท่านั้น ไม่ถูกบันทึกลงระบบจริงเหมือนของนักเรียนจริง</p>
   </div>
 </section>
 
@@ -899,7 +963,7 @@
         sendBtn.disabled = false;
         // The summary updates async server-side (fire-and-forget) after the
         // reply — give it a moment, then refresh the dashboard preview below.
-        if (window.__refreshDashPreview) setTimeout(window.__refreshDashPreview, 2500);
+        if (window.__refreshDashView) setTimeout(window.__refreshDashView, 2500);
       }
     }
 
@@ -943,48 +1007,91 @@
     sendMessage('__init__');
   }
 
-  /* Shared by the dashboard preview section and the popup modal — both show
-     the same session's profile, read from GET /demo/api/profile (in-memory
-     only, demo isolation kept). */
-  async function fetchDemoProfile() {
-    const sessionId = localStorage.getItem('jump_demo_session');
-    if (!sessionId) return null;
-    try {
-      const res = await fetch('/demo/api/profile?sessionId=' + encodeURIComponent(sessionId));
-      if (!res.ok) return null; // not onboarded yet
-      const { profile } = await res.json();
-      return profile;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /* ---- Dashboard popup: opened from the rich menu's "แดชบอร์ด" button,
-     shows up as a small window over the live demo instead of a new page. */
+  /* ---- Dashboard popup: opened from the rich menu's "แดชบอร์ด" button (and
+     the teaser button further down the page), shows up as a small window
+     over the live demo instead of a new page. Mirrors the real /teacher and
+     /dashboard login gates — a password for teachers, phone OTP for
+     students — instead of just handing the profile over. Both logins stay
+     "signed in" for the rest of this browser session, like the real thing,
+     so reopening the modal doesn't ask again until "ออกจากระบบ" is used. */
   function setupDashModal() {
     const modal = document.getElementById('dashModal');
     const backdrop = document.getElementById('dashModalBackdrop');
     const closeBtn = document.getElementById('dashModalClose');
-    const empty = document.getElementById('dashModalEmpty');
-    const fields = document.getElementById('dashModalFields');
 
-    async function open() {
+    const steps = {
+      picker: document.getElementById('dashStepPicker'),
+      teacherLogin: document.getElementById('dashStepTeacherLogin'),
+      studentPhone: document.getElementById('dashStepStudentPhone'),
+      studentOtp: document.getElementById('dashStepStudentOtp'),
+      view: document.getElementById('dashStepView'),
+    };
+
+    let teacherToken = null;
+    let studentUnlocked = false;
+
+    function showStep(name) {
+      Object.values(steps).forEach((el) => { el.style.display = 'none'; });
+      steps[name].style.display = 'block';
+    }
+
+    function resetInputs() {
+      document.getElementById('dashTeacherPassword').value = '';
+      document.getElementById('dashTeacherError').textContent = '';
+      document.getElementById('dashTeacherHint').textContent = '';
+      document.getElementById('dashStudentPhone').value = '';
+      document.getElementById('dashStudentPhoneError').textContent = '';
+      document.getElementById('dashStudentOtp').value = '';
+      document.getElementById('dashStudentOtpError').textContent = '';
+      document.getElementById('dashStudentOtpHint').textContent = '';
+    }
+
+    function renderProfile(profile, badgeText) {
+      document.getElementById('dashViewBadge').textContent = badgeText;
+      document.getElementById('dashViewFullName').textContent = profile.fullName || 'ไม่ระบุ';
+      document.getElementById('dashViewStudentId').textContent = profile.studentId || 'ไม่ระบุ';
+      document.getElementById('dashViewGrade').textContent = profile.grade || 'ไม่ระบุ';
+      document.getElementById('dashViewInterest').textContent = profile.interest || 'ไม่ระบุ';
+      document.getElementById('dashViewSummary').textContent =
+        profile.conversationSummary || 'ยังไม่มีบทสนทนาที่สรุปได้ — ลองถาม Jump ในแชทดูก่อนนะคะ';
+      showStep('view');
+    }
+
+    async function openAsTeacher() {
+      const sessionId = localStorage.getItem('jump_demo_session');
+      try {
+        const res = await fetch('/demo/api/teacher/profile?sessionId=' + encodeURIComponent(sessionId), {
+          headers: { Authorization: 'Bearer ' + teacherToken },
+        });
+        if (!res.ok) { teacherToken = null; showStep('picker'); return; }
+        const { profile } = await res.json();
+        renderProfile(profile, '👩‍🏫 มุมมองคุณครู — ห้องเรียนสาธิต');
+      } catch (e) {
+        teacherToken = null;
+        showStep('picker');
+      }
+    }
+
+    async function openAsStudent() {
+      const sessionId = localStorage.getItem('jump_demo_session');
+      try {
+        const res = await fetch('/demo/api/student/profile?sessionId=' + encodeURIComponent(sessionId));
+        if (!res.ok) { studentUnlocked = false; showStep('picker'); return; }
+        const { profile } = await res.json();
+        renderProfile(profile, '🎓 ข้อมูลของฉัน');
+      } catch (e) {
+        studentUnlocked = false;
+        showStep('picker');
+      }
+    }
+
+    function open() {
       modal.classList.add('is-open');
       modal.setAttribute('aria-hidden', 'false');
-      const profile = await fetchDemoProfile();
-      if (!profile) {
-        empty.style.display = 'block';
-        fields.style.display = 'none';
-        return;
-      }
-      document.getElementById('dashModalFullName').textContent = profile.fullName || 'ไม่ระบุ';
-      document.getElementById('dashModalStudentId').textContent = profile.studentId || 'ไม่ระบุ';
-      document.getElementById('dashModalGrade').textContent = profile.grade || 'ไม่ระบุ';
-      document.getElementById('dashModalInterest').textContent = profile.interest || 'ไม่ระบุ';
-      document.getElementById('dashModalSummary').textContent =
-        profile.conversationSummary || 'ยังไม่มีบทสนทนาที่สรุปได้ — ลองถาม Jump ในแชทดูก่อนนะคะ';
-      empty.style.display = 'none';
-      fields.style.display = 'block';
+      resetInputs();
+      if (teacherToken) { openAsTeacher(); return; }
+      if (studentUnlocked) { openAsStudent(); return; }
+      showStep('picker');
     }
 
     function close() {
@@ -998,52 +1105,119 @@
       if (e.key === 'Escape' && modal.classList.contains('is-open')) close();
     });
 
-    window.__openDashModal = open;
-  }
-
-  /* ---- Live dashboard preview: same session's profile + rolling summary,
-     shown further down the page as its own section. */
-  function setupDashPreview() {
-    const empty = document.getElementById('dashEmpty');
-    const fields = document.getElementById('dashFields');
-    const refreshBtn = document.getElementById('dashRefresh');
-    const pdfBtn = document.getElementById('dashPdf');
-
-    async function refresh() {
-      const profile = await fetchDemoProfile();
-      if (!profile) return; // not onboarded yet — keep showing the empty state
+    document.getElementById('dashPickTeacher').addEventListener('click', async () => {
+      showStep('teacherLogin');
+      document.getElementById('dashTeacherPassword').focus();
       try {
-        document.getElementById('dashFullName').textContent = profile.fullName || 'ไม่ระบุ';
-        document.getElementById('dashStudentId').textContent = profile.studentId || 'ไม่ระบุ';
-        document.getElementById('dashGrade').textContent = profile.grade || 'ไม่ระบุ';
-        document.getElementById('dashInterest').textContent = profile.interest || 'ไม่ระบุ';
-        document.getElementById('dashSummary').textContent =
-          profile.conversationSummary || 'ยังไม่มีบทสนทนาที่สรุปได้ — ลองถาม Jump ในแชทด้านบนดูก่อนนะคะ';
-        empty.style.display = 'none';
-        fields.style.display = 'block';
+        const res = await fetch('/demo/api/teacher/hint');
+        const { hint } = await res.json();
+        if (hint) document.getElementById('dashTeacherHint').textContent = `🔑 รหัสผ่านสาธิต: ${hint}`;
       } catch (e) {
-        // Quiet failure — keep whatever was last shown.
+        // Quiet failure — the field still works without the hint.
       }
-    }
+    });
 
-    refreshBtn.addEventListener('click', refresh);
-    pdfBtn.addEventListener('click', () => {
+    document.getElementById('dashPickStudent').addEventListener('click', () => {
+      showStep('studentPhone');
+      document.getElementById('dashStudentPhone').focus();
+    });
+
+    modal.querySelectorAll('[data-back]').forEach((btn) => {
+      btn.addEventListener('click', () => showStep('picker'));
+    });
+    document.getElementById('dashStudentOtpBack').addEventListener('click', () => showStep('studentPhone'));
+
+    document.getElementById('dashTeacherSubmit').addEventListener('click', async () => {
+      const password = document.getElementById('dashTeacherPassword').value;
+      const errEl = document.getElementById('dashTeacherError');
+      errEl.textContent = '';
+      try {
+        const res = await fetch('/demo/api/teacher/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = 'รหัสผ่านไม่ถูกต้องค่ะ'; return; }
+        teacherToken = data.token;
+        await openAsTeacher();
+      } catch (e) {
+        errEl.textContent = 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งนะคะ';
+      }
+    });
+
+    document.getElementById('dashStudentPhoneSubmit').addEventListener('click', async () => {
+      const sessionId = localStorage.getItem('jump_demo_session');
+      const phone = document.getElementById('dashStudentPhone').value;
+      const errEl = document.getElementById('dashStudentPhoneError');
+      errEl.textContent = '';
+      try {
+        const res = await fetch('/demo/api/student/request-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, phone }),
+        });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = 'เบอร์โทรไม่ถูกต้องค่ะ'; return; }
+        document.getElementById('dashStudentOtpHint').textContent =
+          data.mock && data.code ? `(โหมดสาธิต — รหัสคือ ${data.code})` : '';
+        showStep('studentOtp');
+        document.getElementById('dashStudentOtp').focus();
+      } catch (e) {
+        errEl.textContent = 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งนะคะ';
+      }
+    });
+
+    document.getElementById('dashStudentOtpSubmit').addEventListener('click', async () => {
+      const sessionId = localStorage.getItem('jump_demo_session');
+      const code = document.getElementById('dashStudentOtp').value;
+      const errEl = document.getElementById('dashStudentOtpError');
+      errEl.textContent = '';
+      try {
+        const res = await fetch('/demo/api/student/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, code }),
+        });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = data.message || 'รหัส OTP ไม่ถูกต้องค่ะ'; return; }
+        studentUnlocked = true;
+        renderProfile(data.profile, '🎓 ข้อมูลของฉัน');
+      } catch (e) {
+        errEl.textContent = 'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้งนะคะ';
+      }
+    });
+
+    document.getElementById('dashLogout').addEventListener('click', () => {
+      teacherToken = null;
+      studentUnlocked = false;
+      resetInputs();
+      showStep('picker');
+    });
+
+    document.getElementById('dashViewPdf').addEventListener('click', () => {
       const stamp = new Date().toLocaleDateString('th-TH', { dateStyle: 'long' });
       document.getElementById('dash-print').innerHTML = `
         <h2>ข้อมูลนักเรียน</h2>
         <p class="school">โรงเรียนสาธิต (โหมดสาธิต)</p>
-        <p><b>ชื่อ-นามสกุล:</b> ${document.getElementById('dashFullName').textContent}</p>
-        <p><b>รหัสนักเรียน:</b> ${document.getElementById('dashStudentId').textContent}</p>
-        <p><b>ชั้น/ห้อง:</b> ${document.getElementById('dashGrade').textContent}</p>
-        <p><b>ความสนใจ/เป้าหมาย:</b> ${document.getElementById('dashInterest').textContent}</p>
-        <p><b>สรุปจากการคุยกับ Jump:</b> ${document.getElementById('dashSummary').textContent}</p>
+        <p><b>ชื่อ-นามสกุล:</b> ${document.getElementById('dashViewFullName').textContent}</p>
+        <p><b>รหัสนักเรียน:</b> ${document.getElementById('dashViewStudentId').textContent}</p>
+        <p><b>ชั้น/ห้อง:</b> ${document.getElementById('dashViewGrade').textContent}</p>
+        <p><b>ความสนใจ/เป้าหมาย:</b> ${document.getElementById('dashViewInterest').textContent}</p>
+        <p><b>สรุปจากการคุยกับ Jump:</b> ${document.getElementById('dashViewSummary').textContent}</p>
         <p class="stamp">พิมพ์จาก Jump Demo เมื่อ ${stamp}</p>
       `;
       window.print();
     });
 
-    window.__refreshDashPreview = refresh;
-    refresh();
+    document.getElementById('dashOpenBtn').addEventListener('click', open);
+
+    window.__openDashModal = open;
+    window.__refreshDashView = () => {
+      if (!modal.classList.contains('is-open')) return;
+      if (teacherToken) openAsTeacher();
+      else if (studentUnlocked) openAsStudent();
+    };
   }
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -1051,7 +1225,6 @@
     setupReveals();
     setupLiveChat();
     setupDashModal();
-    setupDashPreview();
 
     // The rich-menu preview image loads async and changes that card's
     // height — recalculate ScrollTrigger positions once it's in, per GSAP's

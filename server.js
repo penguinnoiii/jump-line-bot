@@ -26,7 +26,7 @@ import {
   needsRoleQuickReply,
   updateConversationSummary,
 } from './src/onboarding.js';
-import { login as teacherLogin, verifyToken } from './src/teacher-auth.js';
+import { login as teacherLogin, verifyToken, demoPasswordHint } from './src/teacher-auth.js';
 import {
   newOtpSessionId,
   issueStudentToken,
@@ -283,16 +283,89 @@ app.post('/demo/api/chat', demoJson, async (req, res) => {
   }
 });
 
-// Lets the demo site show a live "dashboard preview" of the session's own
-// profile + rolling summary — reads the SAME in-memory profile the chat
-// endpoint above uses, so it reflects the conversation as it updates.
-app.get('/demo/api/profile', (req, res) => {
+// --- Demo dashboard: mirrors the real /teacher and /dashboard login gates
+// (password for teachers, phone OTP for students) instead of showing the
+// session's profile ungated. Both read the SAME in-memory demo profile the
+// chat endpoint above writes — there's only ever one simulated student per
+// browser session, so "teacher view" and "student view" show that same
+// record, just reached through different logins, like the real product.
+function sanitizeDemoProfile(p) {
+  if (!p) return null;
+  const { fullName, studentId, grade, interest, conversationSummary } = p;
+  return { fullName, studentId, grade, interest, conversationSummary };
+}
+
+// Sessions that have proven phone ownership via OTP at least once this
+// server runtime — lets the student dashboard stay "signed in" across
+// re-opens, same as a real login session, without re-sending an OTP every
+// single time. Cleared on restart, same tradeoff as the other in-memory
+// demo state above.
+const studentDashboardUnlocked = new Set();
+
+// Lets the demo page show the live default password next to the teacher
+// login field — null (nothing shown) once a real TEACHER_PASSWORD is set.
+app.get('/demo/api/teacher/hint', (_req, res) => {
+  res.json({ hint: demoPasswordHint() });
+});
+
+// Same password + token mechanism as the real /teacher/api/login — a demo
+// visitor logging in here gets a token that also happens to work against
+// the real teacher API, but it never exposes anything beyond this one
+// simulated student's demo-only data below.
+app.post('/demo/api/teacher/login', demoJson, (req, res) => {
+  const token = teacherLogin(req.body?.password ?? '');
+  if (!token) return res.status(401).json({ error: 'invalid_password' });
+  res.json({ token });
+});
+
+app.get('/demo/api/teacher/profile', requireTeacherAuth, (req, res) => {
   const sessionId = req.query?.sessionId;
   if (!isDemoSession(sessionId)) return res.status(400).json({ error: 'invalid_session' });
-  const profile = getProfile(sessionId);
+  const profile = sanitizeDemoProfile(getProfile(sessionId));
   if (!profile) return res.status(404).json({ error: 'not_found' });
-  const { fullName, nickname, school, studentId, grade, interest, conversationSummary } = profile;
-  res.json({ profile: { fullName, nickname, school, studentId, grade, interest, conversationSummary } });
+  res.json({ profile });
+});
+
+// Student side of the demo dashboard — re-verify the same phone number via
+// AIS OTP (mock in demo mode) rather than just handing the profile over,
+// mirroring how a student reaches /dashboard from outside the LINE chat.
+app.post('/demo/api/student/request-otp', demoJson, async (req, res) => {
+  const { sessionId } = req.body || {};
+  if (!isDemoSession(sessionId)) return res.status(400).json({ error: 'invalid_session' });
+  const phone = extractThaiMobile(req.body?.phone ?? '');
+  if (!phone) return res.status(400).json({ error: 'invalid_phone' });
+  const r = await requestOtp(sessionId, phone);
+  if (r.error) return res.status(502).json({ error: r.error });
+  res.json({ mock: r.mock, code: r.mock ? r.code : undefined });
+});
+
+app.post('/demo/api/student/verify-otp', demoJson, async (req, res) => {
+  const { sessionId, code } = req.body || {};
+  if (!isDemoSession(sessionId)) return res.status(400).json({ error: 'invalid_session' });
+  if (!code) return res.status(400).json({ error: 'missing_fields' });
+  const r = await verifyOtp(sessionId, code);
+  if (!r.verified) return res.status(401).json({ error: r.reason || 'invalid_code' });
+  const profile = getProfile(sessionId);
+  if (!profile || profile.phone !== r.phone) {
+    return res.status(404).json({
+      error: 'not_found',
+      message: 'ยังไม่พบข้อมูลนักเรียนที่ผูกกับเบอร์นี้ กรุณาคุยกับ Jump ในแชทด้านบนก่อนนะคะ',
+    });
+  }
+  studentDashboardUnlocked.add(sessionId);
+  res.json({ profile: sanitizeDemoProfile(profile) });
+});
+
+// Re-fetch without another OTP, once this session has verified at least
+// once — lets the modal silently refresh (e.g. after the summary updates)
+// or reopen without asking the student to re-verify every time.
+app.get('/demo/api/student/profile', (req, res) => {
+  const sessionId = req.query?.sessionId;
+  if (!isDemoSession(sessionId)) return res.status(400).json({ error: 'invalid_session' });
+  if (!studentDashboardUnlocked.has(sessionId)) return res.status(401).json({ error: 'not_verified' });
+  const profile = sanitizeDemoProfile(getProfile(sessionId));
+  if (!profile) return res.status(404).json({ error: 'not_found' });
+  res.json({ profile });
 });
 
 // LINE webhook. `middleware` reads the raw body and verifies the signature —

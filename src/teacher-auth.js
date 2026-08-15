@@ -32,6 +32,14 @@ export function login(password) {
   return token;
 }
 
+/** The active password, but ONLY when it's the public default (no real
+ * TEACHER_PASSWORD configured) — safe to print on the public demo page so
+ * visitors can try the teacher login themselves. Returns null once a real
+ * secret is set, so that value is never exposed over HTTP. */
+export function demoPasswordHint() {
+  return process.env.TEACHER_PASSWORD ? null : DEFAULT_PASSWORD;
+}
+
 export function verifyToken(token) {
   const exp = tokens.get(token);
   if (!exp) return false;
