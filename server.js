@@ -231,6 +231,16 @@ app.post('/demo/api/chat', demoJson, async (req, res) => {
       });
     }
 
+    // The client also sends this empty "__init__" ping on every page load to
+    // fetch a greeting for a brand-new session (handled above). For a
+    // session that's already onboarded — e.g. the page was reloaded — there
+    // is no real question here, so answer with the profile card instead of
+    // forwarding an empty message to the guidance LLM (Gemini rejects a
+    // request whose last turn resolves to empty content).
+    if (!userText) {
+      return res.json({ reply: profileCardMessage(getProfile(sessionId)), quickReplies: [] });
+    }
+
     if (isProfileInfoRequest(userText)) {
       return res.json({ reply: profileCardMessage(getProfile(sessionId)), quickReplies: [] });
     }
