@@ -1,4 +1,4 @@
-// Jump Thailand — LINE OA education-guidance chatbot.
+// Numpa — LINE OA education-guidance chatbot.
 // Express webhook that verifies LINE signatures, gates each student through
 // onboarding, routes AIS identity requests and guidance questions to the
 // right handler, and replies over the Messaging API.
@@ -60,7 +60,7 @@ const client = new MessagingApiClient({ channelAccessToken });
 const app = express();
 
 // Health check (also lets you confirm the deploy is live in a browser).
-app.get('/', (_req, res) => res.send('Jump Thailand LINE bot is running ✅'));
+app.get('/', (_req, res) => res.send('Numpa LINE bot is running ✅'));
 
 // Static images referenced by public pages (e.g. the rich-menu preview on
 // the demo site) — everything in here is public, non-sensitive artwork.
@@ -147,7 +147,7 @@ app.post('/dashboard/api/student/verify-otp', dashboardJson, async (req, res) =>
   if (!profile) {
     return res.status(404).json({
       error: 'not_found',
-      message: 'ยังไม่พบข้อมูลนักเรียนที่ผูกกับเบอร์นี้ กรุณาเข้าสู่ระบบผ่านแชทกับ Jump ก่อนนะคะ',
+      message: 'ยังไม่พบข้อมูลนักเรียนที่ผูกกับเบอร์นี้ กรุณาเข้าสู่ระบบผ่านแชทกับ Numpa ก่อนนะคะ',
     });
   }
   const token = await issueStudentToken(profile.userId);
@@ -307,7 +307,7 @@ app.post('/demo/api/chat', demoJson, async (req, res) => {
 
       // "ย่อยความชอบ...เข้าไปในความชอบล่าสุด" — only counts a new interest
       // when this exchange reached a clear, confirmed conclusion (the
-      // student said it themselves, or agreed when Jump asked), never from
+      // student said it themselves, or agreed when Numpa asked), never from
       // a vague guess. Queued as a notification for the NEXT message rather
       // than blocking this reply.
       extractConfirmedInterest(userText, reply, profile.recentInterests || [])
@@ -393,7 +393,7 @@ app.post('/demo/api/student/verify-otp', demoJson, async (req, res) => {
   if (!profile || profile.phone !== r.phone) {
     return res.status(404).json({
       error: 'not_found',
-      message: 'ยังไม่พบข้อมูลนักเรียนที่ผูกกับเบอร์นี้ กรุณาคุยกับ Jump ในแชทด้านบนก่อนนะคะ',
+      message: 'ยังไม่พบข้อมูลนักเรียนที่ผูกกับเบอร์นี้ กรุณาคุยกับ Numpa ในแชทด้านบนก่อนนะคะ',
     });
   }
   studentDashboardUnlocked.add(sessionId);
@@ -569,4 +569,4 @@ app.use((err, _req, res, _next) => {
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Jump Thailand LINE bot listening on :${port}`));
+app.listen(port, () => console.log(`Numpa LINE bot listening on :${port}`));

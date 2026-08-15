@@ -40,8 +40,8 @@ async function main() {
   const { richMenuId } = await client.createRichMenu({
     size: MENU_SIZE,
     selected: true,
-    name: 'Jump Thailand',
-    chatBarText: 'เมนู Jump',
+    name: 'Numpa',
+    chatBarText: 'เมนู Numpa',
     areas: PANEL_BOUNDS.map((bounds, i) => ({ bounds, action: ACTIONS[i] })),
   });
   console.log('created rich menu', richMenuId);

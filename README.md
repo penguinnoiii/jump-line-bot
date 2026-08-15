@@ -1,6 +1,6 @@
-# Jump Thailand — LINE OA Guidance Chatbot (Demo)
+# Numpa — LINE OA Guidance Chatbot (Demo)
 
-A live LINE Official Account chatbot that gives Thai students personalized education guidance, powered by **Gemini** (Google's Gemini API). This is the working demo behind the Jump Thailand tech pitch.
+A live LINE Official Account chatbot that gives Thai students personalized education guidance, powered by **Gemini** (Google's Gemini API). This is the working demo behind the Numpa tech pitch.
 
 **Stack:** Node.js + Express + `@line/bot-sdk` (Messaging API) + `@google/genai` SDK. Deployed on Render.
 
@@ -13,8 +13,8 @@ Student in LINE app  →  LINE Platform  →  /webhook (this server)  →  Gemin
 ## Part A — Create the LINE Official Account (you must do this; it needs an interactive login)
 
 1. Go to the **LINE Developers Console**: https://developers.line.biz/console/ and log in with a LINE account.
-2. **Create a Provider** (e.g. "Jump Thailand") if you don't have one.
-3. Inside the provider, **Create a new channel → Messaging API**. Fill in name (e.g. "Jump แนะแนว"), category, etc. This automatically creates a linked LINE Official Account.
+2. **Create a Provider** (e.g. "Numpa") if you don't have one.
+3. Inside the provider, **Create a new channel → Messaging API**. Fill in name (e.g. "Numpa แนะแนว"), category, etc. This automatically creates a linked LINE Official Account.
 4. Open the channel → **Messaging API** tab:
    - **Channel access token (long-lived):** click **Issue** → copy it → this is `LINE_CHANNEL_ACCESS_TOKEN`.
 5. Open the channel → **Basic settings** tab:
@@ -46,7 +46,7 @@ Keep the two values handy for Part C.
    - `GEMINI_API_KEY`
    - (`GEMINI_MODEL` defaults to `gemini-2.5-flash`.)
 4. Deploy. When it's live, note the URL, e.g. `https://jump-line-bot.onrender.com`.
-   Open it in a browser — you should see "Jump Thailand LINE bot is running ✅".
+   Open it in a browser — you should see "Numpa LINE bot is running ✅".
 
 > **Free-tier note:** Render's free web service sleeps after ~15 min idle, so the *first* message after a nap takes ~30–60s to wake. For a live demo, hit the URL once to warm it up right before, or use a paid instance.
 
@@ -125,7 +125,7 @@ You chose Render for the live demo, but to iterate locally:
 cd jump-line-bot
 git init
 git add .
-git commit -m "Jump Thailand LINE guidance bot"
+git commit -m "Numpa LINE guidance bot"
 # create an empty repo on github.com first, then:
 git remote add origin https://github.com/<you>/jump-line-bot.git
 git push -u origin main
@@ -139,7 +139,7 @@ git push -u origin main
 
 - `server.js` — verifies the LINE signature, acks fast, routes text messages to the LLM, replies.
 - `src/prompts.js` — the system prompt encoding the **advisor role and ethics guardrails** from the brief: AI can search/summarize/compare, but is a *decision-support tool, not the decider of a child's future*; Human-in-the-loop for "เหมาะ/ไม่เหมาะ" calls; PDPA-aware; honest that this demo has no live central database yet.
-- `src/onboarding.js` — **student "log in" gate**: consent → **AIS phone verification (OTP, required)** → 5 general-info questions — **ชื่อ-นามสกุล (full name), โรงเรียน, รหัสนักเรียน, ชั้น/ห้อง, ความสนใจ/เป้าหมาย** (skippable with **"ข้าม"**; phone/OTP are not — they're the identity gate). Wrong code → retry; **"ส่งรหัสใหม่"** resends; **"เปลี่ยนเบอร์"** restarts from the phone step. The student is addressed by their **first name**, derived from the full name. Declining consent still lets a student chat (generic, non-personalized) rather than blocking them outright. Send **"เข้าสู่ระบบ"** (or "แก้ไขข้อมูล") anytime to restart it. The profile feeds Gemini so replies are genuinely tailored. The very first message also gives a short **"what can Jump do"** list before asking to log in.
+- `src/onboarding.js` — **student "log in" gate**: consent → **AIS phone verification (OTP, required)** → 5 general-info questions — **ชื่อ-นามสกุล (full name), โรงเรียน, รหัสนักเรียน, ชั้น/ห้อง, ความสนใจ/เป้าหมาย** (skippable with **"ข้าม"**; phone/OTP are not — they're the identity gate). Wrong code → retry; **"ส่งรหัสใหม่"** resends; **"เปลี่ยนเบอร์"** restarts from the phone step. The student is addressed by their **first name**, derived from the full name. Declining consent still lets a student chat (generic, non-personalized) rather than blocking them outright. Send **"เข้าสู่ระบบ"** (or "แก้ไขข้อมูล") anytime to restart it. The profile feeds Gemini so replies are genuinely tailored. The very first message also gives a short **"what can Numpa do"** list before asking to log in.
 - `src/llm.js` — calls **Gemini** via `@google/genai`, personalizes using the onboarding profile, grounds answers in live web search when needed, and keeps a short in-memory chat history per user. Replies are tuned **short and emoji-forward** (chat-style, ~4-6 lines) rather than long formatted reports — see `src/prompts.js`.
 - `src/store.js` + `src/teacher-auth.js` + `public/teacher.html` — **cloud storage + Teacher View** (the optional "Teacher View ถ้าทำทัน" from the brief, now built). Every completed profile is persisted to **Upstash Redis** (free, REST-based cloud store), indexed by room (reusing the ชั้น/ห้อง answer, e.g. `ม.6/3`). A guidance teacher opens **`/teacher`**, enters a password, and sees every room's students with their full profile — no `UPSTASH_REDIS_REST_URL`/`TOKEN` → falls back to in-memory (works for a demo, resets on restart). **Auth is demo-grade**: one shared password (`TEACHER_PASSWORD`, defaults to `jump-demo-2026` if unset — change it before sharing the URL) issuing a 1-hour bearer token; real deployment would want per-teacher accounts.
 - `public/dashboard.html` + `src/dashboard-auth.js` — **`/dashboard`**, the rich-menu entry point both roles share. Teacher card links straight to `/teacher` above. Student card logs in with the **same AIS OTP flow used everywhere else** (phone → code → done) — deliberately *not* a name/student-ID lookup, which a classmate could spoof. A verified student can then view and edit their own **fullName / school / studentId / grade / interest** (phone stays tied to the chat's OTP verification, not editable here). Edits write through `onboarding.js`'s `updateProfileFields()`, which updates **both** the cloud record (teacher sees it) **and** the live in-memory chat session — so the very next guidance reply reflects the change, verified end-to-end in testing.

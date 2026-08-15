@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Jump Thailand — Dashboard</title>
+<title>Numpa — Dashboard</title>
 <style>
   :root {
     --bg: #f5f7fa; --surface: #ffffff; --surface-2: #eef2f7;
@@ -81,7 +81,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>🎓 Jump Dashboard</h1>
+  <h1>🎓 Numpa Dashboard</h1>
   <p class="sub">แดชบอร์ดสำหรับครูแนะแนวและนักเรียน — โรงเรียนสาธิต</p>
 
   <div id="screen-role">
@@ -102,7 +102,7 @@
   <div id="screen-phone">
     <div class="card">
       <span class="back" onclick="showScreen('role')">← กลับ</span>
-      <p style="margin-top:0">ยืนยันตัวตนด้วยเบอร์โทรที่ใช้ตอนเข้าสู่ระบบกับ Jump ในแชทค่ะ 📱</p>
+      <p style="margin-top:0">ยืนยันตัวตนด้วยเบอร์โทรที่ใช้ตอนเข้าสู่ระบบกับ Numpa ในแชทค่ะ 📱</p>
       <label>เบอร์โทร</label>
       <input type="tel" id="phone-input" placeholder="0812345678" />
       <button onclick="requestOtp()">ขอรหัส OTP</button>
@@ -134,10 +134,10 @@
       <div class="hint">การเปลี่ยนชั้น/ห้องจะย้ายไปสรุปห้องใหม่ในหน้าครูแนะแนวด้วยค่ะ</div>
       <label>ความสนใจ/เป้าหมาย</label>
       <textarea id="f-interest"></textarea>
-      <div class="hint">Jump ใช้ข้อมูลนี้ปรับคำแนะนำให้ตรงกับตัวน้องมากขึ้น อัปเดตได้ทุกเมื่อ ✨</div>
+      <div class="hint">Numpa ใช้ข้อมูลนี้ปรับคำแนะนำให้ตรงกับตัวน้องมากขึ้น อัปเดตได้ทุกเมื่อ ✨</div>
 
-      <label>📝 สรุปจากการคุยกับ Jump</label>
-      <div class="summary-box" id="f-summary">ยังไม่มีบทสนทนาที่สรุปได้ — ลองถาม Jump ในแชทดูก่อนนะคะ</div>
+      <label>📝 สรุปจากการคุยกับ Numpa</label>
+      <div class="summary-box" id="f-summary">ยังไม่มีบทสนทนาที่สรุปได้ — ลองถาม Numpa ในแชทดูก่อนนะคะ</div>
       <div class="hint">สรุปนี้อัปเดตอัตโนมัติจากบทสนทนาจริงใน LINE ให้ครูแนะแนวหรือผู้ปกครองอ่านได้เร็ว ๆ (แก้ไขเองไม่ได้)</div>
 
       <button onclick="saveProfile()">บันทึกการเปลี่ยนแปลง</button>
@@ -210,7 +210,7 @@
     document.getElementById('f-grade').value = p.grade || '';
     document.getElementById('f-interest').value = (p.interest === 'ไม่ระบุ' ? '' : p.interest) || '';
     document.getElementById('f-summary').textContent =
-      p.conversationSummary || 'ยังไม่มีบทสนทนาที่สรุปได้ — ลองถาม Jump ในแชทดูก่อนนะคะ';
+      p.conversationSummary || 'ยังไม่มีบทสนทนาที่สรุปได้ — ลองถาม Numpa ในแชทดูก่อนนะคะ';
     document.getElementById('profile-badge').innerHTML = p.phoneVerified
       ? `<span class="badge">✅ ${escapeHtml(p.phone)} ยืนยันแล้ว</span>`
       : '';
@@ -238,7 +238,7 @@
       if (res.ok && data?.profile) {
         renderProfile(data.profile);
         msgEl.className = 'msg ok';
-        msgEl.textContent = '✅ บันทึกแล้ว! Jump จะใช้ข้อมูลนี้ในการแนะแนวครั้งต่อไป';
+        msgEl.textContent = '✅ บันทึกแล้ว! Numpa จะใช้ข้อมูลนี้ในการแนะแนวครั้งต่อไป';
         return;
       }
 
@@ -286,8 +286,8 @@
       <p><b>รหัสนักเรียน:</b> ${escapeHtml(studentId)}</p>
       <p><b>ชั้น/ห้อง:</b> ${escapeHtml(grade)}</p>
       <p><b>ความสนใจ/เป้าหมาย:</b> ${escapeHtml(interest || 'ไม่ระบุ')}</p>
-      <p><b>สรุปจากการคุยกับ Jump:</b> ${escapeHtml(summary)}</p>
-      <p class="stamp">พิมพ์จาก Jump Dashboard เมื่อ ${stamp}</p>
+      <p><b>สรุปจากการคุยกับ Numpa:</b> ${escapeHtml(summary)}</p>
+      <p class="stamp">พิมพ์จาก Numpa Dashboard เมื่อ ${stamp}</p>
     `;
     window.print();
   }

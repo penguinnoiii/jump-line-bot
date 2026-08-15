@@ -92,7 +92,7 @@ export function buildGuidanceFlexMessage(text, sources = []) {
       layout: 'vertical',
       backgroundColor: BRAND.line,
       paddingAll: '12px',
-      contents: [{ type: 'text', text: '🎓 Jump', color: '#ffffff', size: 'sm', weight: 'bold' }],
+      contents: [{ type: 'text', text: '🎓 Numpa', color: '#ffffff', size: 'sm', weight: 'bold' }],
     },
     body: { type: 'box', layout: 'vertical', paddingAll: '16px', contents: bodyContents },
     ...(footerContents.length > 0

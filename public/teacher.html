@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Jump Thailand — Teacher View</title>
+<title>Numpa — Teacher View</title>
 <style>
   :root {
     --bg: #f5f7fa; --surface: #ffffff; --surface-2: #eef2f7;
@@ -84,7 +84,7 @@
 <div class="wrap">
 
   <div id="login-view">
-    <h1>🎓 Jump — Teacher View</h1>
+    <h1>🎓 Numpa — Teacher View</h1>
     <p class="sub">ระบบดูสรุปข้อมูลนักเรียนสำหรับครูแนะแนว</p>
     <div class="card">
       <input type="password" id="password" placeholder="รหัสผ่านครู" autofocus />
@@ -95,7 +95,7 @@
 
   <div id="app-view">
     <span class="logout" onclick="logout()">ออกจากระบบ</span>
-    <h1>🎓 Jump — Teacher View</h1>
+    <h1>🎓 Numpa — Teacher View</h1>
     <p class="sub">คลิกเลือกห้องเพื่อดูสรุปข้อมูลนักเรียนในห้องนั้น — โรงเรียนสาธิต</p>
     <div class="rooms" id="rooms"></div>
     <div class="students" id="students"></div>
@@ -203,7 +203,7 @@
       <p><b>รหัสนักเรียน:</b> ${escapeHtml(s.studentId || 'ไม่ระบุ')}</p>
       <p><b>ชั้น/ห้อง:</b> ${escapeHtml(s.grade || 'ไม่ระบุ')}</p>
       <p><b>ความสนใจ/เป้าหมาย:</b> ${escapeHtml(s.interest || 'ไม่ระบุ')}</p>
-      <p class="stamp">พิมพ์จาก Jump Teacher View เมื่อ ${stamp}</p>
+      <p class="stamp">พิมพ์จาก Numpa Teacher View เมื่อ ${stamp}</p>
     `;
     window.print();
   }

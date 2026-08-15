@@ -85,9 +85,9 @@ const FIELDS = [
 // Shown the moment someone adds the OA as a friend (LINE 'follow' event),
 // and as a fallback on their first text message if a 'follow' event was
 // ever missed. Short on purpose — just enough to identify who's talking to
-// Jump before deciding whether to run the student login flow at all.
+// Numpa before deciding whether to run the student login flow at all.
 const FOLLOW_INTRO_MSG =
-  `สวัสดีค่ะ 👋 นี่คือ "Jump" ผู้ช่วยแนะแนวการศึกษาประจำ${SCHOOL_NAME} ค่ะ\n` +
+  `สวัสดีค่ะ 👋 นี่คือ "Numpa" ผู้ช่วยแนะแนวการศึกษาประจำ${SCHOOL_NAME} ค่ะ\n` +
   'ช่วยค้นหา/เปรียบเทียบสายการเรียน ทุนการศึกษา และให้คำแนะแนวเฉพาะบุคคลได้ตลอด 24 ชม. ✨\n\n' +
   'ก่อนเริ่ม ขอทราบก่อนนะคะ ว่าคุยด้วยในฐานะ "นักเรียน" หรือ "คุณครู" คะ?';
 
@@ -97,7 +97,7 @@ const TEACHER_URL =
   (process.env.APP_BASE_URL || 'https://jump-line-bot.onrender.com') + '/teacher';
 
 const TEACHER_INFO_MSG =
-  'สวัสดีค่ะคุณครู 🙏 น้อง ๆ นักเรียนคุยกับ Jump ในแชทนี้ได้เลย ส่วนคุณครูดูสรุปข้อมูลนักเรียนแต่ละห้องได้ที่ ' +
+  'สวัสดีค่ะคุณครู 🙏 น้อง ๆ นักเรียนคุยกับ Numpa ในแชทนี้ได้เลย ส่วนคุณครูดูสรุปข้อมูลนักเรียนแต่ละห้องได้ที่ ' +
   `"Teacher View" ค่ะ (ใส่รหัสผ่านที่ได้รับจากผู้ดูแลระบบ):\n${TEACHER_URL}`;
 
 const ROLE_TEACHER_KEYWORD = /ครู|teacher/i;
@@ -113,7 +113,7 @@ const CONSENT_ASK_MSG =
 const CONSENT_RETRY_MSG = 'รบกวนพิมพ์ "ยินยอม" หรือ "ไม่ยินยอม" ค่ะ 🙏';
 
 const ANON_MODE_MSG =
-  'รับทราบค่ะ 🙏 จะไม่เก็บข้อมูลส่วนตัวไว้นะคะ คุยกับ Jump ได้เลย แต่คำแนะนำอาจเป็นแบบทั่วไป ' +
+  'รับทราบค่ะ 🙏 จะไม่เก็บข้อมูลส่วนตัวไว้นะคะ คุยกับ Numpa ได้เลย แต่คำแนะนำอาจเป็นแบบทั่วไป ' +
   'เพราะยังไม่รู้ข้อมูลของน้อง ✨\n(พิมพ์ "เข้าสู่ระบบ" ได้ทุกเมื่อถ้าอยากกรอกข้อมูลภายหลัง)';
 
 const PHONE_QUESTION =
@@ -147,7 +147,7 @@ function profileCardBody(p) {
 function doneSummary(p) {
   return (
     `เรียบร้อยค่ะ ✅\n\n${profileCardBody(p)}\n\n` +
-    'ตอนนี้คุยกับ Jump ได้เลยค่ะ ลองถามอะไรก็ได้เกี่ยวกับการเรียนต่อ ✨\n' +
+    'ตอนนี้คุยกับ Numpa ได้เลยค่ะ ลองถามอะไรก็ได้เกี่ยวกับการเรียนต่อ ✨\n' +
     '(พิมพ์ "เข้าสู่ระบบ" ได้ทุกเมื่อถ้าต้องการเริ่มกรอกใหม่)'
   );
 }
