@@ -18,12 +18,11 @@ const blobClient = new messagingApi.MessagingApiBlobClient({ channelAccessToken 
 const BASE_URL = process.env.APP_BASE_URL || 'https://jump-line-bot.onrender.com';
 
 // Each panel taps to send a message the bot already understands, except the
-// dashboard, which opens a web page. Panel 1 always (re)starts the
-// login/onboarding flow — "เข้าสู่ระบบ" is a reset-command alias (see
-// src/onboarding.js), so it shows the welcome + consent screen whether or
-// not the tapper is already logged in.
+// dashboard, which opens a web page. No dedicated "log in" panel — the login
+// flow now starts on its own as soon as someone adds the OA as a friend (see
+// the LINE 'follow' event handler in server.js), so a manual entry point
+// would just be redundant.
 const ACTIONS = [
-  { type: 'message', text: 'เข้าสู่ระบบ' },
   { type: 'message', text: 'ช่วยเปรียบเทียบโรงเรียนสายวิทย์-คณิตในกรุงเทพให้หน่อย' },
   { type: 'message', text: 'ผมอยู่ ม.3 สนใจสายวิทย์-คณิต ควรเตรียมตัวยังไง' },
   { type: 'uri', uri: `${BASE_URL}/dashboard` },

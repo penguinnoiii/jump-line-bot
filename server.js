@@ -20,6 +20,9 @@ import {
   handleOnboarding,
   syncPhoneIfOnboarded,
   updateProfileFields,
+  isProfileInfoRequest,
+  profileCardMessage,
+  needsRoleQuickReply,
 } from './src/onboarding.js';
 import { login as teacherLogin, verifyToken } from './src/teacher-auth.js';
 import {
@@ -181,7 +184,42 @@ app.post('/webhook', middleware({ channelSecret }), async (req, res) => {
   await Promise.all(events.map(handleEvent));
 });
 
+// Quick-reply buttons offered alongside the role question ("นักเรียน" /
+// "คุณครู"), so most people can tap instead of typing.
+function roleQuickReply() {
+  return {
+    items: [
+      { type: 'action', action: { type: 'message', label: 'นักเรียน', text: 'นักเรียน' } },
+      { type: 'action', action: { type: 'message', label: 'คุณครู', text: 'คุณครู' } },
+    ],
+  };
+}
+
+function onboardingMessages(userId, text) {
+  const message = { type: 'text', text };
+  if (needsRoleQuickReply(userId)) message.quickReply = roleQuickReply();
+  return [message];
+}
+
 async function handleEvent(event) {
+  // A user adding the OA as a friend (or unblocking it) — greet immediately
+  // with a short self-intro and ask whether they're a student or a teacher,
+  // rather than waiting for their first message.
+  if (event.type === 'follow') {
+    const userId = event.source?.userId;
+    if (!userId) return;
+    try {
+      const introReply = await handleOnboarding(userId, '');
+      await client.replyMessage({
+        replyToken: event.replyToken,
+        messages: onboardingMessages(userId, introReply),
+      });
+    } catch (err) {
+      console.error('follow event error:', err);
+    }
+    return;
+  }
+
   if (event.type !== 'message' || event.message.type !== 'text') return;
 
   const userId = event.source?.userId ?? 'anon';
@@ -189,10 +227,11 @@ async function handleEvent(event) {
   if (!userText) return;
 
   try {
-    // Onboarding gate ("log in"): consent → phone verification (AIS OTP,
-    // required) → 5 general-info questions. Students can't reach the
-    // guidance LLM until this completes. A reset command works even for an
-    // already-onboarded student.
+    // Onboarding gate ("log in"): role (student/teacher) → consent → phone
+    // verification (AIS OTP, required) → 4 general-info questions. Students
+    // can't reach the guidance LLM until this completes; teachers never go
+    // through it at all (see the 'teacher' stage in src/onboarding.js). A
+    // reset command works even for an already-onboarded student.
     //
     // This MUST run before the standalone AIS dispatcher below — otherwise a
     // bare phone number typed at the in-flow 'phone' step gets intercepted
@@ -203,7 +242,18 @@ async function handleEvent(event) {
       const onboardingReply = await handleOnboarding(userId, userText);
       await client.replyMessage({
         replyToken: event.replyToken,
-        messages: [{ type: 'text', text: onboardingReply }],
+        messages: onboardingMessages(userId, onboardingReply),
+      });
+      return;
+    }
+
+    // Student asking to see their own info mid-conversation (e.g. "ข้อมูลของฉัน")
+    // — answer with a guaranteed-accurate, consistently-formatted card plus a
+    // dashboard link, instead of routing it to the guidance LLM.
+    if (isProfileInfoRequest(userText)) {
+      await client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: 'text', text: profileCardMessage(getProfile(userId)) }],
       });
       return;
     }

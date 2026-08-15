@@ -21,7 +21,6 @@ const H = 843;
 // Each panel's chip is a two-stop gradient (not a flat fill) — brighter,
 // more contemporary than a single flat hue per panel.
 const PANELS = [
-  { title: 'เข้าสู่ระบบ', sub: 'เริ่มใช้งาน Jump', icon: 'check', from: '#22e5a0', to: '#0aa66e' },
   { title: 'ค้นหาโรงเรียน', sub: 'เปรียบเทียบสายการเรียน', icon: 'search', from: '#6d8bff', to: '#3d5af1' },
   { title: 'แนะแนว', sub: 'ด้วย AI (Gemini)', icon: 'cap', from: '#ffb454', to: '#f2861f' },
   { title: 'แดชบอร์ด', sub: 'ครู/นักเรียน', icon: 'grid', from: '#c68bff', to: '#9c4dff' },
@@ -36,18 +35,7 @@ function drawIcon(ctx, kind, cx, cy, r) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  if (kind === 'check') {
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.lineWidth = r * 0.15;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx - r * 0.42, cy + r * 0.02);
-    ctx.lineTo(cx - r * 0.08, cy + r * 0.38);
-    ctx.lineTo(cx + r * 0.48, cy - r * 0.36);
-    ctx.lineWidth = r * 0.22;
-    ctx.stroke();
-  } else if (kind === 'search') {
+  if (kind === 'search') {
     ctx.beginPath();
     ctx.arc(cx - r * 0.12, cy - r * 0.12, r * 0.62, 0, Math.PI * 2);
     ctx.lineWidth = r * 0.2;

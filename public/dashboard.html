@@ -63,12 +63,22 @@
     padding: 5px 11px; border-radius: 999px; background: var(--green-soft); color: var(--green); }
   .hint { font-size: 12px; color: var(--faint); margin-top: 4px; }
   #screen-role, #screen-phone, #screen-otp, #screen-profile { display: none; }
+  .print-only { display: none; }
+  @media print {
+    body * { visibility: hidden; }
+    #print-summary, #print-summary * { visibility: visible; }
+    #print-summary { display: block; position: absolute; top: 0; left: 0; width: 100%; padding: 24px; }
+    #print-summary h2 { margin: 0 0 4px; }
+    #print-summary .school { color: #586576; margin: 0 0 20px; }
+    #print-summary p { margin: 0 0 10px; font-size: 14px; }
+    #print-summary .stamp { color: #8592a3; font-size: 12px; margin-top: 24px; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>🎓 Jump Dashboard</h1>
-  <p class="sub">แดชบอร์ดสำหรับครูแนะแนวและนักเรียน</p>
+  <p class="sub">แดชบอร์ดสำหรับครูแนะแนวและนักเรียน — โรงเรียนสาธิต</p>
 
   <div id="screen-role">
     <div class="role-grid">
@@ -113,8 +123,6 @@
       <div id="profile-badge"></div>
       <label>ชื่อ-นามสกุล</label>
       <input id="f-fullName" />
-      <label>โรงเรียน</label>
-      <input id="f-school" />
       <label>รหัสนักเรียน</label>
       <input id="f-studentId" />
       <label>ชั้น/ห้อง</label>
@@ -124,10 +132,14 @@
       <textarea id="f-interest"></textarea>
       <div class="hint">Jump ใช้ข้อมูลนี้ปรับคำแนะนำให้ตรงกับตัวน้องมากขึ้น อัปเดตได้ทุกเมื่อ ✨</div>
       <button onclick="saveProfile()">บันทึกการเปลี่ยนแปลง</button>
+      <button class="secondary" onclick="shareAsPdf()">🖨️ แชร์เป็น PDF (ให้ผู้ปกครองดู)</button>
+      <div class="hint">กดแล้วเลือก "บันทึกเป็น PDF" ในหน้าต่างพิมพ์ที่เปิดขึ้นมาได้เลยค่ะ</div>
       <div class="msg" id="save-msg"></div>
     </div>
   </div>
 </div>
+
+<div id="print-summary"></div>
 
 <script>
   let sessionId = null;
@@ -185,7 +197,6 @@
 
   function renderProfile(p) {
     document.getElementById('f-fullName').value = p.fullName || '';
-    document.getElementById('f-school').value = p.school || '';
     document.getElementById('f-studentId').value = p.studentId || '';
     document.getElementById('f-grade').value = p.grade || '';
     document.getElementById('f-interest').value = (p.interest === 'ไม่ระบุ' ? '' : p.interest) || '';
@@ -200,7 +211,6 @@
     msgEl.textContent = 'กำลังบันทึก...';
     const body = {
       fullName: document.getElementById('f-fullName').value,
-      school: document.getElementById('f-school').value,
       studentId: document.getElementById('f-studentId').value,
       grade: document.getElementById('f-grade').value,
       interest: document.getElementById('f-interest').value,
@@ -230,7 +240,7 @@
       }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
 
       if (recheck?.profile && recheck.profile.fullName === body.fullName &&
-          recheck.profile.school === body.school && recheck.profile.studentId === body.studentId) {
+          recheck.profile.studentId === body.studentId) {
         renderProfile(recheck.profile);
         msgEl.className = 'msg ok';
         msgEl.textContent = '✅ บันทึกแล้ว! (เชื่อมต่อช้าไปนิดหน่อย แต่ข้อมูลบันทึกสำเร็จค่ะ)';
@@ -249,6 +259,24 @@
     const div = document.createElement('div');
     div.textContent = String(str ?? '');
     return div.innerHTML;
+  }
+
+  function shareAsPdf() {
+    const fullName = document.getElementById('f-fullName').value;
+    const studentId = document.getElementById('f-studentId').value;
+    const grade = document.getElementById('f-grade').value;
+    const interest = document.getElementById('f-interest').value;
+    const stamp = new Date().toLocaleDateString('th-TH', { dateStyle: 'long' });
+    document.getElementById('print-summary').innerHTML = `
+      <h2>ข้อมูลนักเรียน</h2>
+      <p class="school">โรงเรียนสาธิต</p>
+      <p><b>ชื่อ-นามสกุล:</b> ${escapeHtml(fullName)}</p>
+      <p><b>รหัสนักเรียน:</b> ${escapeHtml(studentId)}</p>
+      <p><b>ชั้น/ห้อง:</b> ${escapeHtml(grade)}</p>
+      <p><b>ความสนใจ/เป้าหมาย:</b> ${escapeHtml(interest || 'ไม่ระบุ')}</p>
+      <p class="stamp">พิมพ์จาก Jump Dashboard เมื่อ ${stamp}</p>
+    `;
+    window.print();
   }
 </script>
 </body>

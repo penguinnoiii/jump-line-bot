@@ -64,6 +64,20 @@
   .fields dd { margin: 0; }
   .empty { color: var(--faint); text-align: center; padding: 30px 0; }
   .logout { float: right; font-size: 13px; color: var(--muted); cursor: pointer; text-decoration: underline; }
+  .pdf-btn {
+    margin-top: 10px; width: auto; padding: 7px 12px; font-size: 12.5px;
+    background: var(--surface-2); color: var(--ink); border: 1px solid var(--border-strong);
+  }
+  .print-only { display: none; }
+  @media print {
+    body * { visibility: hidden; }
+    #print-summary, #print-summary * { visibility: visible; }
+    #print-summary { display: block; position: absolute; top: 0; left: 0; width: 100%; padding: 24px; }
+    #print-summary h2 { margin: 0 0 4px; }
+    #print-summary .school { color: #586576; margin: 0 0 20px; }
+    #print-summary p { margin: 0 0 10px; font-size: 14px; }
+    #print-summary .stamp { color: #8592a3; font-size: 12px; margin-top: 24px; }
+  }
 </style>
 </head>
 <body>
@@ -82,17 +96,20 @@
   <div id="app-view">
     <span class="logout" onclick="logout()">ออกจากระบบ</span>
     <h1>🎓 Jump — Teacher View</h1>
-    <p class="sub">คลิกเลือกห้องเพื่อดูสรุปข้อมูลนักเรียนในห้องนั้น</p>
+    <p class="sub">คลิกเลือกห้องเพื่อดูสรุปข้อมูลนักเรียนในห้องนั้น — โรงเรียนสาธิต</p>
     <div class="rooms" id="rooms"></div>
     <div class="students" id="students"></div>
   </div>
 
 </div>
 
+<div id="print-summary"></div>
+
 <script>
   let token = null;
+  let currentStudents = [];
   const FIELD_LABELS = [
-    ['fullName', 'ชื่อ-นามสกุล'], ['school', 'โรงเรียน'], ['studentId', 'รหัสนักเรียน'],
+    ['fullName', 'ชื่อ-นามสกุล'], ['studentId', 'รหัสนักเรียน'],
     ['grade', 'ชั้น/ห้อง'], ['interest', 'ความสนใจ/เป้าหมาย'], ['phone', 'เบอร์ที่ยืนยัน (AIS)'],
   ];
 
@@ -155,10 +172,11 @@
     });
     if (res.status === 401) return logout();
     const { students } = await res.json();
+    currentStudents = students;
     const el = document.getElementById('students');
     el.innerHTML = '';
     if (!students.length) { el.innerHTML = '<div class="empty">ไม่มีนักเรียนในห้องนี้</div>'; return; }
-    students.forEach((s) => {
+    students.forEach((s, i) => {
       const card = document.createElement('div');
       card.className = 'student-card';
       const fields = FIELD_LABELS.filter(([k]) => k !== 'grade' && k !== 'phone' && s[k])
@@ -168,9 +186,26 @@
         : '<span class="badge unverified">ยังไม่ยืนยันเบอร์</span>';
       card.innerHTML =
         `<h3>👤 ${escapeHtml(s.nickname || 'ไม่ระบุชื่อ')} <span class="room">· ${escapeHtml(s.room || '')}</span> ${badge}</h3>` +
-        `<dl class="fields">${fields}</dl>`;
+        `<dl class="fields">${fields}</dl>` +
+        `<button class="pdf-btn" onclick="printStudent(${i})">🖨️ แชร์เป็น PDF (ให้ผู้ปกครองดู)</button>`;
       el.appendChild(card);
     });
+  }
+
+  function printStudent(i) {
+    const s = currentStudents[i];
+    if (!s) return;
+    const stamp = new Date().toLocaleDateString('th-TH', { dateStyle: 'long' });
+    document.getElementById('print-summary').innerHTML = `
+      <h2>ข้อมูลนักเรียน</h2>
+      <p class="school">${escapeHtml(s.school || 'โรงเรียนสาธิต')}</p>
+      <p><b>ชื่อ-นามสกุล:</b> ${escapeHtml(s.fullName || s.nickname || 'ไม่ระบุ')}</p>
+      <p><b>รหัสนักเรียน:</b> ${escapeHtml(s.studentId || 'ไม่ระบุ')}</p>
+      <p><b>ชั้น/ห้อง:</b> ${escapeHtml(s.grade || 'ไม่ระบุ')}</p>
+      <p><b>ความสนใจ/เป้าหมาย:</b> ${escapeHtml(s.interest || 'ไม่ระบุ')}</p>
+      <p class="stamp">พิมพ์จาก Jump Teacher View เมื่อ ${stamp}</p>
+    `;
+    window.print();
   }
 
   function escapeHtml(str) {
