@@ -5,7 +5,7 @@
 
 import express from 'express';
 import { middleware, messagingApi } from '@line/bot-sdk';
-import { generateGuidance, resetHistory } from './src/llm.js';
+import { generateGuidance, resetHistory, summarizeConversation } from './src/llm.js';
 import {
   handleIdentityMessage,
   extractThaiMobile,
@@ -23,6 +23,7 @@ import {
   isProfileInfoRequest,
   profileCardMessage,
   needsRoleQuickReply,
+  updateConversationSummary,
 } from './src/onboarding.js';
 import { login as teacherLogin, verifyToken } from './src/teacher-auth.js';
 import {
@@ -114,9 +115,12 @@ const dashboardJson = express.json();
 
 function sanitizeStudentProfile(p) {
   if (!p) return null;
-  const { fullName, nickname, school, studentId, grade, interest, phone, phoneVerified } = p;
+  const {
+    fullName, nickname, school, studentId, grade, interest, phone, phoneVerified,
+    conversationSummary,
+  } = p;
   return {
-    fullName, nickname, school, studentId, grade, interest, phoneVerified,
+    fullName, nickname, school, studentId, grade, interest, phoneVerified, conversationSummary,
     phone: phoneVerified && phone ? maskPhone(phone) : null,
   };
 }
@@ -363,6 +367,18 @@ async function handleEvent(event) {
       replyToken: event.replyToken,
       messages: [{ type: 'text', text: text + sourceBlock }],
     });
+
+    // Fire-and-forget: fold this exchange into the student's rolling
+    // conversation summary and persist it, so the next login — even after
+    // this server restarts — still has continuity, and the summary shows
+    // up on their dashboard/PDF for a teacher or parent to read. Never
+    // blocks or fails the reply above.
+    const profileForSummary = getProfile(userId);
+    if (profileForSummary) {
+      summarizeConversation(userId, profileForSummary.conversationSummary)
+        .then((summary) => updateConversationSummary(userId, summary))
+        .catch((err) => console.error('[server] conversation summary error:', err));
+    }
   } catch (err) {
     console.error('handleEvent error:', err);
     try {

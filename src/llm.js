@@ -59,6 +59,17 @@ export async function generateGuidance(userId, userText, profile = null) {
       '("ไม่ระบุ" แปลว่านักเรียนข้ามคำถามนั้น ไม่ต้องนำมาพูดถึง)';
   }
 
+  // Rolling summary persisted across sessions (src/onboarding.js's
+  // updateConversationSummary) — gives continuity even after this server
+  // restarts and wipes the in-memory `histories` Map below, or when the
+  // student logs back in on a new day with no in-memory history at all.
+  if (profile?.conversationSummary) {
+    systemContent +=
+      `\n\n---\nสรุปสิ่งที่เคยคุยกับนักเรียนคนนี้จากครั้งก่อน ๆ: ${profile.conversationSummary}\n` +
+      'ใช้เป็นบริบทเพื่อความต่อเนื่อง (เช่น ถ้าเคยคุยเรื่องเป้าหมายหรือคำถามค้างไว้ ให้ต่อยอดได้เลย) ' +
+      'แต่ไม่ต้องพูดถึงว่า "จากที่เคยคุยกันไว้" ตรง ๆ เว้นแต่จะเกี่ยวข้องกับคำถามปัจจุบันจริง ๆ';
+  }
+
   let sources = [];
   if (needsWebSearch(userText)) {
     const { results } = await webSearch(userText);
@@ -116,4 +127,43 @@ export async function generateGuidance(userId, userText, profile = null) {
   histories.set(userId, updated);
 
   return { text, sources };
+}
+
+/**
+ * Fold the most recent exchange into a short rolling summary of what this
+ * student is interested in / has been asking about — persisted onto their
+ * profile (src/onboarding.js's updateConversationSummary) so it survives
+ * server restarts and gives the dashboard/PDF something human-readable
+ * without dumping the raw chat log. Call fire-and-forget after a guidance
+ * reply; never lets a failure here affect the actual chat reply.
+ * @param {string} userId
+ * @param {string|null} [existingSummary] the profile's current summary, if any
+ * @returns {Promise<string|null>} the updated summary, or null on failure/no history
+ */
+export async function summarizeConversation(userId, existingSummary = null) {
+  const history = histories.get(userId) || [];
+  if (history.length === 0) return null;
+
+  const recent = history
+    .slice(-6)
+    .map((h) => `${h.role === 'user' ? 'นักเรียน' : 'Jump'}: ${h.parts[0]?.text || ''}`)
+    .join('\n');
+
+  const prompt =
+    'สรุปสั้น ๆ ไม่เกิน 3 ประโยค ว่านักเรียนคนนี้สนใจเรื่องอะไร มีเป้าหมายอะไร หรือถามอะไรไปบ้าง ' +
+    'จากบทสนทนานี้ เพื่อให้ครูแนะแนวหรือผู้ปกครองอ่านแล้วเข้าใจได้เร็ว ตอบเป็นข้อความธรรมดา ไม่ต้องมี bullet' +
+    (existingSummary ? `\n\nสรุปเดิมจากก่อนหน้านี้ (ต่อยอด/ปรับปรุงได้): ${existingSummary}` : '') +
+    `\n\nบทสนทนาล่าสุด:\n${recent}`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: { temperature: 0.3, maxOutputTokens: 200 },
+    });
+    return response.text?.trim() || null;
+  } catch (err) {
+    console.error('[llm] summarizeConversation failed:', err);
+    return null;
+  }
 }

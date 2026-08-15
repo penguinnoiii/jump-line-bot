@@ -49,6 +49,10 @@
   }
   textarea { resize: vertical; min-height: 60px; }
   input:disabled { background: var(--surface-2); color: var(--faint); }
+  .summary-box {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px;
+    padding: 10px 12px; font-size: 14px; color: var(--ink); line-height: 1.55;
+  }
   button {
     padding: 11px 14px; border-radius: 9px; border: none;
     background: var(--primary); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
@@ -131,6 +135,11 @@
       <label>ความสนใจ/เป้าหมาย</label>
       <textarea id="f-interest"></textarea>
       <div class="hint">Jump ใช้ข้อมูลนี้ปรับคำแนะนำให้ตรงกับตัวน้องมากขึ้น อัปเดตได้ทุกเมื่อ ✨</div>
+
+      <label>📝 สรุปจากการคุยกับ Jump</label>
+      <div class="summary-box" id="f-summary">ยังไม่มีบทสนทนาที่สรุปได้ — ลองถาม Jump ในแชทดูก่อนนะคะ</div>
+      <div class="hint">สรุปนี้อัปเดตอัตโนมัติจากบทสนทนาจริงใน LINE ให้ครูแนะแนวหรือผู้ปกครองอ่านได้เร็ว ๆ (แก้ไขเองไม่ได้)</div>
+
       <button onclick="saveProfile()">บันทึกการเปลี่ยนแปลง</button>
       <button class="secondary" onclick="shareAsPdf()">🖨️ แชร์เป็น PDF (ให้ผู้ปกครองดู)</button>
       <div class="hint">กดแล้วเลือก "บันทึกเป็น PDF" ในหน้าต่างพิมพ์ที่เปิดขึ้นมาได้เลยค่ะ</div>
@@ -200,6 +209,8 @@
     document.getElementById('f-studentId').value = p.studentId || '';
     document.getElementById('f-grade').value = p.grade || '';
     document.getElementById('f-interest').value = (p.interest === 'ไม่ระบุ' ? '' : p.interest) || '';
+    document.getElementById('f-summary').textContent =
+      p.conversationSummary || 'ยังไม่มีบทสนทนาที่สรุปได้ — ลองถาม Jump ในแชทดูก่อนนะคะ';
     document.getElementById('profile-badge').innerHTML = p.phoneVerified
       ? `<span class="badge">✅ ${escapeHtml(p.phone)} ยืนยันแล้ว</span>`
       : '';
@@ -266,6 +277,7 @@
     const studentId = document.getElementById('f-studentId').value;
     const grade = document.getElementById('f-grade').value;
     const interest = document.getElementById('f-interest').value;
+    const summary = document.getElementById('f-summary').textContent;
     const stamp = new Date().toLocaleDateString('th-TH', { dateStyle: 'long' });
     document.getElementById('print-summary').innerHTML = `
       <h2>ข้อมูลนักเรียน</h2>
@@ -274,6 +286,7 @@
       <p><b>รหัสนักเรียน:</b> ${escapeHtml(studentId)}</p>
       <p><b>ชั้น/ห้อง:</b> ${escapeHtml(grade)}</p>
       <p><b>ความสนใจ/เป้าหมาย:</b> ${escapeHtml(interest || 'ไม่ระบุ')}</p>
+      <p><b>สรุปจากการคุยกับ Jump:</b> ${escapeHtml(summary)}</p>
       <p class="stamp">พิมพ์จาก Jump Dashboard เมื่อ ${stamp}</p>
     `;
     window.print();

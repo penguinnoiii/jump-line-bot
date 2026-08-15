@@ -209,6 +209,29 @@ export function syncPhoneIfOnboarded(userId) {
   syncVerifiedPhone(userId, profiles.get(userId));
 }
 
+/** The student's current rolling conversation summary, if any — used to
+ * seed src/llm.js's summarizeConversation() with what to build on. */
+export function getConversationSummary(userId) {
+  return profiles.get(userId)?.conversationSummary || null;
+}
+
+/**
+ * Attach an updated conversation-interest summary onto a student's profile
+ * and persist it, so it survives this server restarting and shows up on
+ * their dashboard/PDF. Fire-and-forget from server.js after a guidance
+ * reply — never on the reply's critical path. Demo sessions are skipped
+ * (see the `demo` flag on handleOnboarding), same as all other persistence.
+ */
+export function updateConversationSummary(userId, summary) {
+  const p = profiles.get(userId);
+  if (!p || p.stage !== 'done' || p.anonymous || p.demo || !summary) return;
+  p.conversationSummary = summary;
+  p.conversationSummaryAt = Date.now();
+  persistProfile(userId, p).catch((err) =>
+    console.error('[onboarding] persist conversation summary failed:', err),
+  );
+}
+
 export function isResetCommand(text) {
   return RESET_KEYWORD.test(String(text));
 }
